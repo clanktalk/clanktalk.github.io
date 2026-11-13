@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ClankTalk Docs - clank-talk</title>
+  <link rel="canonical" href="https://clank.talk/docs.html">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<main class="content">
+<div class="features"><img class="page-robot" src="img/clanktalk-robot.png" alt="A friendly robot"><p><a href="./">Home</a> | <a href="reference.html">Docs for Agents</a> | <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a> | <a href="https://github.com/sponsors/bigskysoftware">Sponsor</a></p><h1>ClankTalk Docs</h1>
+<ul class="areas">
+<li><a href="#overview">Overview</a></li>
+<li><a href="#install">Install</a></li>
+<li><a href="#agents-talk">Your AGENTS.talk</a></li>
+<li><a href="#reading-output">Reading Your Agent's Work</a></li>
+<li><a href="#harness-notes">Harness and Agent Notes</a></li>
+<li><a href="#limitations">Limitations</a></li>
+</ul><div class="construction"><p>ClankTalk is under construction!</p>
+</div><h2 id="overview"><a class="heading-link" href="#overview">Overview</a></h2>
+<p>ClankTalk is a scripting language designed mainly for agents to write and for humans to read.  Humans write a little bit of it, defining tools and policies for agents in the ClankTalk runtime, but that&#39;s pretty much it. </p>
+<p>ClankTalk is an <a href="https://en.wikipedia.org/wiki/HyperTalk">xTalk</a> language, which reads like English.  As we learn every time <a href="https://hyperscript.org">hyperscript</a> is posted to HackerNews or Reddit, many people dislike <em>writing</em> code in this style.  But we think, if you have an open mind, you can agree that it at least <em>reads</em> well.</p>
+<p>And, for a language intended to be written by agents and read by humans... it&#39;s just about perfect.</p>
+<p>The ClankTalk runtime is designed to be a replacement for giving your agent unrestricted shell access.  </p>
+<p>If you think about it, it&#39;s pretty crazy that we do this:
+ shell can run any program, with all of your rights.  It can read your secrets: <code>.env</code>, <code>~/.ssh</code>, cloud credentials.  It can send anything to any host. It can change or delete any file, also outside the project.  Pipes, quotes and <code>$(...)</code> make its commands hard to read, and harder to audit.</p>
+<div class="compare"><div class="window">
+<div class="window-title">bump.sh</div>
+<pre><code class="language-bash"><span class="tok-keyword">for</span> f <span class="tok-keyword">in</span> ./config/*.json; <span class="tok-keyword">do</span>
+  v=<span class="tok-path">$(</span>jq -r <span class="tok-string">'.version'</span> <span class="tok-string">&quot;$f&quot;</span>)
+  <span class="tok-keyword">if</span> [ <span class="tok-string">&quot;$v&quot;</span> -lt <span class="tok-number">2</span> ]; <span class="tok-keyword">then</span>
+    jq <span class="tok-string">'.version = 2'</span> <span class="tok-string">&quot;$f&quot;</span> &gt; <span class="tok-string">&quot;$f.tmp&quot;</span> \
+      &amp;&amp; mv <span class="tok-string">&quot;$f.tmp&quot;</span> <span class="tok-string">&quot;$f&quot;</span>
+  <span class="tok-keyword">fi</span>
+<span class="tok-keyword">done</span></code></pre>
+</div>
+<div class="window">
+<div class="window-title">bump.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">for</span> file <span class="tok-keyword">in</span> <span class="tok-path">./config/*.json</span>
+  <span class="tok-keyword">set</span> config <span class="tok-keyword">to</span> <span class="tok-keyword">the</span> file<span class="tok-keyword">'s</span> <span class="tok-keyword">text</span> <span class="tok-keyword">as</span> <span class="tok-keyword">json</span>
+  <span class="tok-keyword">if</span> config<span class="tok-keyword">'s</span> version <span class="tok-keyword">is</span> <span class="tok-keyword">less</span> <span class="tok-keyword">than</span> <span class="tok-number">2</span>
+    <span class="tok-keyword">set</span> config<span class="tok-keyword">'s</span> version <span class="tok-keyword">to</span> <span class="tok-number">2</span>
+    <span class="tok-keyword">write</span> config <span class="tok-keyword">as</span> <span class="tok-keyword">json</span> <span class="tok-keyword">to</span> <span class="tok-keyword">the</span> file
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+</div>
+<script src="js/compare.js"></script><p>ClankTalk replaces this, let&#39;s just say it, digital anarchy, with a much more controlled runtime environment for your agents to do work in, providing:</p>
+<ul>
+<li><strong><a href="#sandboxing">File access limits</a>:</strong> scripts stay inside the project root. They cannot change <code>.talk</code> files or hidden files such as <code>.env</code> and <code>.git/</code>, unless you allow it.</li>
+<li><strong><a href="#tools">Your own tools</a>:</strong> no shell. Programs run only through the tools that you define in <code>AGENTS.talk</code>, and can run in an OS-level sandbox.</li>
+<li><strong><a href="#secrets">Secrets Management</a>:</strong> your agent can use the secrets you allow it, but can&#39;t see the values.</li>
+<li><strong><a href="#taint">Taint tracking</a>:</strong> Tainted external input is tracked and can be used to make policy decisions.</li>
+<li><strong><a href="#hooks">Hooks</a>:</strong> You get callbacks for all actions an agent wants to take.</li>
+<li><strong><a href="#audit">An audit log</a>:</strong> saved in <code>.talk/audit/</code> that shows you what the agent did.</li>
+<li><strong><a href="#undo">Undo</a>:</strong> allows you to revert file changes, one script at a time, even without git.</li>
+<li><strong>A hardened git:</strong> with no hooks, pagers or --force.</li>
+<li><strong>Limits:</strong> a step budget and time limits stop runaway scripts.</li>
+</ul>
+<p>The ClankTalk environment isn&#39;t perfect, of course, but it gives you a lot more control and observability when compared with most agent runtimes today.</p>
+<h2 id="install"><a class="heading-link" href="#install">Install</a></h2>
+<p>ClankTalk runs as an <a href="https://modelcontextprotocol.io">MCP</a> server with one tool, <code>clank_talk</code>.  There is also a pi package available for it.</p>
+<p>The nice thing about this architecture is that it can work with any agent and in any harness: all you have to do is enable the MCP server and then turn off all (or most) of the other tools available, and the agent
+will start using it.</p>
+<div class="install-area">
+<div class="install install-docs">
+<div class="install-picker">
+<span class="install-label">Pick Your Harness</span>
+<button class="install-button" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="agent-icon claude">C</span><span class="install-name">Claude Code</span><span class="install-chevron"></span></button>
+<ul class="install-menu" role="listbox" hidden>
+<li role="option" tabindex="0" data-agent="claude"><span class="agent-icon claude">C</span>Claude Code</li>
+<li role="option" tabindex="0" data-agent="pi"><span class="agent-icon pi">&pi;</span>pi</li>
+<li role="option" tabindex="0" data-agent="codex"><span class="agent-icon codex">O</span>Codex</li>
+<li role="option" tabindex="0" data-agent="opencode"><span class="agent-icon other">O</span>opencode (experimental)</li>
+<li role="option" tabindex="0" data-agent="other"><span class="agent-icon other">M</span>Other MCP clients</li>
+</ul>
+</div>
+</div><div class="harness" data-agent="claude"><h3>Claude Code</h3>
+<p>Add the server:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-bash">$ claude mcp add clank-talk -- npx -y -p clank-talk@<span class="tok-number">0</span>.<span class="tok-number">1</span> clank-talk-mcp</code></pre>
+</div>
+<p>Then, in Claude Code, add the plugin:</p>
+<pre><code>/plugin install clank-talk --marketplace bigskysoftware/clank-talk
+</code></pre>
+<p>The plugin gives you <code>/taint</code> to review untrusted inputs, <code>/clank-talk on|off</code>, and ClankTalk&#39;s questions in Claude Code&#39;s own dialog.  In a project with an <code>AGENTS.talk</code>, it blocks the other tools.  To allow some of them, add <code>allow harness tools Read, Grep</code> to your <code>AGENTS.talk</code>.</p>
+<aside><p>To share the server with your team, put it in a <code>.mcp.json</code> at the root of your project instead:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-json">{
+  <span class="tok-keyword">&quot;mcpServers&quot;</span>: {
+    <span class="tok-keyword">&quot;clank-talk&quot;</span>: {
+      <span class="tok-keyword">&quot;command&quot;</span>: <span class="tok-string">&quot;npx&quot;</span>,
+      <span class="tok-keyword">&quot;args&quot;</span>: [<span class="tok-string">&quot;-y&quot;</span>, <span class="tok-string">&quot;-p&quot;</span>, <span class="tok-string">&quot;clank-talk@0.1&quot;</span>, <span class="tok-string">&quot;clank-talk-mcp&quot;</span>]
+    }
+  }
+}</code></pre>
+</div>
+</aside></div><div class="harness" data-agent="pi" hidden><h3>pi</h3>
+<p>ClankTalk ships as a pi package, so it runs inside pi.  In a project with an <code>AGENTS.talk</code>, it turns off every other tool; <code>/clank-talk off</code> turns them back on, and <code>/taint</code> reviews untrusted inputs.</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-bash"><span class="tok-comment"># try it once, with no install</span>
+$ pi -e git:github.com/bigskysoftware/clank-talk
+
+<span class="tok-comment"># install it for this project only</span>
+$ pi install -l git:github.com/bigskysoftware/clank-talk
+
+<span class="tok-comment"># turn it on or off for this project</span>
+$ pi config --<span class="tok-keyword">local</span>
+
+<span class="tok-comment"># remove it from this project</span>
+$ pi remove -l git:github.com/bigskysoftware/clank-talk</code></pre>
+</div>
+<p>Careful with <code>pi install</code> without the <code>-l</code>: then every pi session on your machine gets ClankTalk!</p>
+</div><div class="harness" data-agent="codex" hidden><h3>Codex</h3>
+<p>Add the server:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-bash">$ codex mcp add clank-talk -- npx -y -p clank-talk@<span class="tok-number">0</span>.<span class="tok-number">1</span> clank-talk-mcp
+$ codex mcp list</code></pre>
+</div>
+</div><div class="harness" data-agent="opencode" hidden><h3>opencode (experimental)</h3>
+<p>ClankTalk has an experimental plugin for opencode V2.  Install the package in your project:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-bash">$ npm install --save-dev clank-talk</code></pre>
+</div>
+<p>Then load the plugin in <code>opencode.jsonc</code>:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-json">{ <span class="tok-keyword">&quot;plugins&quot;</span>: [<span class="tok-string">&quot;./node_modules/clank-talk/src/js/harnesses/opencode&quot;</span>] }</code></pre>
+</div>
+<p>It gives you <code>/taint</code> and <code>/clank-talk on|off</code>.  In a project with an <code>AGENTS.talk</code>, it hides and blocks the other tools.</p>
+</div><div class="harness" data-agent="other" hidden><h3>Other agents</h3>
+<p>Most MCP clients take a config like this:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-json">{
+  <span class="tok-keyword">&quot;mcpServers&quot;</span>: {
+    <span class="tok-keyword">&quot;clank-talk&quot;</span>: {
+      <span class="tok-keyword">&quot;command&quot;</span>: <span class="tok-string">&quot;npx&quot;</span>,
+      <span class="tok-keyword">&quot;args&quot;</span>: [<span class="tok-string">&quot;-y&quot;</span>, <span class="tok-string">&quot;-p&quot;</span>, <span class="tok-string">&quot;clank-talk@0.1&quot;</span>, <span class="tok-string">&quot;clank-talk-mcp&quot;</span>]
+    }
+  }
+}</code></pre>
+</div>
+<p>Cursor reads it from <code>.cursor/mcp.json</code> in your project.</p>
+<p>If your client lets you, turn off its other tools, so the agent uses ClankTalk for everything.</p>
+</div>
+</div>
+<script src="js/install.js"></script><p>If you are using ClankTalk, we recommend that you put the following directions in your <code>AGENTS.md</code></p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-md"><span class="tok-keyword">## Tools</span>
+
+Use the clank_talk tool for all work: reading, editing, search, git and tests.
+Do not use a shell or other file tools.  If other tools are available warn the user.
+If ClankTalk cannot do a task, stop and tell the human what is missing.</code></pre>
+</div>
+<h2 id="agents-talk"><a class="heading-link" href="#agents-talk">Your AGENTS.talk</a></h2>
+<p>As we mentioned, you, the reader, will not likely write very much ClankTalk (you will mostly be reading the ClankTalk your agent wrote.)  However, there is one area where you will be asked to write some code: the <code>AGENTS.talk</code> file.</p>
+<h3>The AGENTS.talk File</h3>
+<p>An <code>AGENTS.talk</code> file lives in the root of your project and is loaded by the ClankTalk environment when it starts up and defines:</p>
+<ul>
+<li>What agents are allowed to do</li>
+<li>Callbacks when agents take action</li>
+<li>Various other configuration options</li>
+</ul>
+<p>Here is a simple <code>AGENTS.talk</code> file:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-talk"><span class="tok-comment"># AGENTS.talk</span>
+<span class="tok-keyword">allow</span> <span class="tok-keyword">env</span> PATH, HOME
+
+<span class="tok-comment"># Runs the full test suite.</span>
+<span class="tok-keyword">tool</span> run_tests
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm test'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">local</span> <span class="tok-keyword">network</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>This <code>AGENTS.talk</code> file passes the <code>PATH</code> and <code>HOME</code> environment variables on to the programs that its tools run, and then defines a custom tool for running the tests in the project.</p>
+<p>The <code>in a sandbox</code> part runs <code>npm test</code> in an OS sandbox.  In the sandbox, the program can write only to your project (not to <code>.git</code>, <code>.talk</code> files or hidden files), it can read only system folders, its install folder and tool caches, and it has no network.</p>
+<p>The <code>with local network</code> part then gives the program <code>localhost</code>, so tests that start a local server still work.</p>
+<p>The program still cannot get to the internet.</p>
+<p>Agents can then execute the <code>run_tests</code> tool and read its output.</p>
+<h4>Finding AGENTS.talk</h4>
+<p>ClankTalk resolves the project root to look for <code>AGENTS.talk</code> in the following order:</p>
+<ol>
+<li><code>--root /path/to/project</code>, if you start the MCP server with it.</li>
+<li>The environment variable <code>CLANK_TALK_ROOT=/path/to/project</code>.</li>
+<li>The folder where your agent starts.</li>
+</ol>
+<p>Note that agents cannot modify any <code>.talk</code> files in your project, so they are a protected space for you to write permissions and tools for them.</p>
+<h3 id="tools"><a class="heading-link" href="#tools">A Tool for Running A Single Test</a></h3>
+<p>Running the entire test suite is great, but sometimes you only want to run a single test.  Or, at least, you only want your agent to run a single test.</p>
+<p>Let&#39;s add another tool to run a single test:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-comment"># Runs one test file.</span>
+<span class="tok-keyword">tool</span> run_test_file <span class="tok-keyword">with</span> file
+  <span class="tok-keyword">run</span> <span class="tok-string">'node'</span> <span class="tok-keyword">with</span> <span class="tok-string">'--test'</span>, file <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>Your agent can can call this new tool with a file:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-talk"><span class="tok-keyword">set</span> tests <span class="tok-keyword">to</span> run_test_file <span class="tok-path">@/test/app.test.js</span>
+<span class="tok-keyword">if</span> tests<span class="tok-keyword">'s</span> code <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-number">0</span>
+  <span class="tok-keyword">print</span> <span class="tok-keyword">find</span> <span class="tok-string">'FAIL'</span> <span class="tok-keyword">in</span> tests<span class="tok-keyword">'s</span> output
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>The <code>@/test/app.test.js</code> path is a <em>project relative</em> path (don&#39;t worry, your agent will figure it out.)</p>
+<p>Note that an agent can <em>never</em> execute <code>run</code> directly, only via the tools that you give it in an <code>AGENT.talk</code> file.  The agent can&#39;t use shell and the execution passes in only the variables in <code>allow env</code>.</p>
+<p>This gives you significant control over what an agent is and is not allowed to do in your project.</p>
+<h3>Dealing With Hanging Tests</h3>
+<p>Now let&#39;s go back and improve the <code>run_tests</code> tools.</p>
+<p>Let&#39;s say that it is prone to hanging at times and we don&#39;t want our tool to wait forever when it does.</p>
+<p>We can add <code>within 2 minutes</code> to the end of our <code>run</code> and it will kill a hung test.</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-comment"># Runs the full test suite.</span>
+<span class="tok-keyword">tool</span> run_tests
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm test'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">local</span> <span class="tok-keyword">network</span> <span class="tok-keyword">within</span> <span class="tok-number">2</span> minutes
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>Agent can set shorter limit on a tool call: <code>run_tests within 2 minutes</code> as well.</p>
+<h3 id="sandboxing"><a class="heading-link" href="#sandboxing">Accessing A Cache Outside the Project</a></h3>
+<p>By default, ClankTalk runtime file access is <em>sandboxed</em> to the current project directory and subdirectories.  </p>
+<p>This is not a fool-proof sandbox in the strict sense, but a best-effort &quot;prevent agents from messing with stuff&quot; mechanism.</p>
+<p>Of course, sometimes you might need to give tools access to a directory (e.g. a playwright cache).  </p>
+<p>You can do this in your <code>AGENTS.talk</code> tool definitions like so:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-comment"># Runs the full test suite.</span>
+<span class="tok-keyword">tool</span> run_tests
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm test'</span>
+    <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">local</span> <span class="tok-keyword">network</span>, <span class="tok-keyword">reads</span> <span class="tok-keyword">of</span> <span class="tok-string">'~/.cache/ms-playwright'</span>
+    <span class="tok-keyword">within</span> <span class="tok-number">10</span> minutes
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<h3>Fixing the CI Config</h3>
+<p>Another CatTalk default is that agents are not allowed to change hidden files.  </p>
+<p>This prevents rogue agents from changing dangerous files like <code>.git/hooks/pre-commit</code>, a script that git runs on your machine at your next commit.</p>
+<p>Sometimes, though, you want to allow an agent to modify hidden files like your CI config in <code>.github/</code>.  </p>
+<p>To do so, you can use the <code>allow changes</code> syntax in your AGENTS.talk file:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> <span class="tok-keyword">changes</span> <span class="tok-keyword">to</span> <span class="tok-path">@/.github/</span></code></pre>
+</div>
+<p>Note that ClankTalk <em>never</em> allows agent changes to <code>.talk</code> files and also bans all reading and writing of <code>.env</code>, <code>.env.*</code> and <code>.envrs</code> files in any folders.</p>
+<h3>The Dev Server</h3>
+<p>Next, let&#39;s give our agent the ability to start a dev server for us by executing an NPM command, <code>npm run dev</code></p>
+<p>This is not a synchronous task, instead you want to be able to launch it and then continue working.  </p>
+<p>For something like that, you can use <code>start</code></p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> <span class="tok-keyword">fetch</span> from <span class="tok-path">http://localhost:5173/</span>
+
+<span class="tok-comment"># Starts the dev server.</span>
+<span class="tok-keyword">tool</span> dev_server
+  <span class="tok-keyword">start</span> <span class="tok-string">'npm run dev'</span> <span class="tok-keyword">as</span> <span class="tok-string">'dev'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">local</span> <span class="tok-keyword">network</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>Note that we allow <code>fetch</code> from <code>http://localhost:5173</code> explicitly: we don&#39;t want to give agents the ability to just spam our machine looking at ports, now do we?  By default, fetches will be disallowed.</p>
+<p>Your agent can then start it, and, if it wants, wait for it to come up:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-talk">dev_server
+<span class="tok-keyword">wait</span> <span class="tok-keyword">until</span> <span class="tok-keyword">the</span> status <span class="tok-keyword">of</span> <span class="tok-keyword">fetch</span> <span class="tok-path">http://localhost:5173/</span> <span class="tok-keyword">as</span> <span class="tok-keyword">response</span>
+  <span class="tok-keyword">is</span> <span class="tok-number">200</span> <span class="tok-keyword">within</span> <span class="tok-number">15</span> seconds
+<span class="tok-keyword">print</span> <span class="tok-keyword">the</span> output <span class="tok-keyword">of</span> <span class="tok-keyword">process</span> <span class="tok-string">'dev'</span></code></pre>
+</div>
+<p>The agent can then stop the process with <code>stop</code>:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-talk"><span class="tok-keyword">stop</span> <span class="tok-keyword">process</span> <span class="tok-string">'dev'</span></code></pre>
+</div>
+<h3>Installing Packages</h3>
+<p>OK, let&#39;s add another tool to, <em>sigh</em>, install NPM packages.</p>
+<p><code>npm install</code> needs the wider network obviously, and also needs access to npm&#39;s cache directory.</p>
+<p>To give it access to that we would write:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-comment"># Installs the dependencies.</span>
+<span class="tok-keyword">tool</span> npm_install
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm install'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">network</span>, <span class="tok-keyword">writes</span> <span class="tok-keyword">to</span> <span class="tok-string">'~/.npm'</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>We give the <code>npm_install</code> tool the minimal set of permissions it needs.</p>
+<h3 id="secrets"><a class="heading-link" href="#secrets">Calling the GitHub API</a></h3>
+<p>Sometimes you need <em>secrets</em> in a project.  Of course, secrets are dangerous because they can leak.</p>
+<p>ClankTalk uses the <code>.env</code> convention for secrets, and refuses to let scripts read or write <code>.env</code> files.</p>
+<p>Secrets are resolved in the following way:</p>
+<ul>
+<li>First, the environment that ClankTalk runs in.</li>
+<li>Then <code>.env.local</code>, in the project root.</li>
+<li>Then <code>.env</code>, in the project root.</li>
+</ul>
+<p>An empty value counts as no value.  ClankTalk reads the files on each script run, so changes are picked up immediately.</p>
+<p>The files use the usual dotenv form: <code>KEY=value</code> lines, <code>#</code> comments, an optional <code>export</code>, and quoted values.</p>
+<p>Scripts cannot read <code>.env</code>, <code>.env.*</code> or <code>.envrc</code> files in any folder, and <code>git diff</code> and <code>git show</code> hide their contents.</p>
+<p>ClankTalk loads only the secrets that an <code>allow secret</code> line specifies in your AGENTS.talk file:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> <span class="tok-keyword">fetch</span> from <span class="tok-string">'api.github.com'</span>
+<span class="tok-keyword">allow</span> secret GITHUB_TOKEN <span class="tok-keyword">for</span> <span class="tok-keyword">fetch</span> <span class="tok-keyword">to</span> <span class="tok-string">'api.github.com'</span></code></pre>
+</div>
+<p>With this line, your agent can then use the token when fetching from Github.</p>
+<p>However, it cannot see its value.</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-talk"><span class="tok-keyword">fetch</span> <span class="tok-path">https://api.github.com/user</span> <span class="tok-keyword">as</span> <span class="tok-keyword">json</span>
+  <span class="tok-keyword">with</span> headers: {
+    Authorization: <span class="tok-string">'Bearer '</span> + secret GITHUB_TOKEN
+  }</code></pre>
+</div>
+<h3>Publishing to npm</h3>
+<p>OK, now let&#39;s say we want our agent to publish our package to npm.</p>
+<p>To publish, <code>npm</code> needs a token in its environment.  We don&#39;t want the agent to ever see that token, so we give it to the tool rather than to the agent:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> secret NPM_TOKEN <span class="tok-keyword">for</span> <span class="tok-keyword">run</span>
+
+<span class="tok-comment"># Publishes the package.</span>
+<span class="tok-keyword">tool</span> publish
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm publish'</span> using secret NPM_TOKEN <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">network</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>The <code>using secret NPM_TOKEN</code> bit hands the token to <code>npm</code> as an environment variable.  If the token ever shows up in the output, ClankTalk replaces it with <code>&lt;secret NPM_TOKEN&gt;</code>.</p>
+<p>Now, a word of warning: a program with a secret and the network can send that secret anywhere it likes.  And <code>npm publish</code> runs scripts from <code>package.json</code>, a file your agent can happily edit.  So be careful about handing secrets to programs whose code your agent can change!</p>
+<p>ClankTalk is here to help, but it&#39;s not omniscient!</p>
+<h3 id="hooks"><a class="heading-link" href="#hooks">Hooks</a></h3>
+<p>Let&#39;s say you want a global rule that every program your agent runs must be in a sandbox.  </p>
+<p>You <em>could</em> write that down in your <code>AGENTS.md</code> and hope for the best but, agents being agents, sooner or later one will forget.</p>
+<p>What you really want is a way to verify on every run that the run is in a sandbox.</p>
+<p>That&#39;s what hooks are for: they let you hook into before and after runtime calls to, well, pretty much anything, and potentially stop what&#39;s going on.</p>
+<p>Here is a hook that rejects any <code>run</code> that isn&#39;t in a sandbox:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">before</span> <span class="tok-keyword">run</span>
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">run</span><span class="tok-keyword">'s</span> <span class="tok-keyword">sandbox</span> <span class="tok-keyword">is</span> <span class="tok-keyword">null</span>
+    <span class="tok-keyword">reject</span> <span class="tok-string">'Use a sandbox'</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>A <code>before</code> hook runs before every step of its kind.  If the hook calls <code>reject</code>, the step doesn&#39;t happen, and the script gets your message back as an error.</p>
+<p>You can hook into pretty much anything an agent does:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Runs before</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>read</code></td>
+<td>a script reads a file</td>
+</tr>
+<tr>
+<td><code>write</code></td>
+<td>a script writes a file</td>
+</tr>
+<tr>
+<td><code>append</code></td>
+<td>a script adds text to the end of a file</td>
+</tr>
+<tr>
+<td><code>replace</code></td>
+<td>a script replaces text in a file</td>
+</tr>
+<tr>
+<td><code>put</code></td>
+<td>a script puts lines into a file</td>
+</tr>
+<tr>
+<td><code>remove</code></td>
+<td>a script removes lines from a file</td>
+</tr>
+<tr>
+<td><code>move</code></td>
+<td>a script moves a file</td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td>a script deletes a file</td>
+</tr>
+<tr>
+<td><code>undo</code></td>
+<td>a script puts files back with <code>undo</code></td>
+</tr>
+<tr>
+<td><code>change</code></td>
+<td>any file change at all: all of the above except <code>read</code></td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td>a tool runs a program</td>
+</tr>
+<tr>
+<td><code>start</code></td>
+<td>a tool starts a background program</td>
+</tr>
+<tr>
+<td><code>stop</code></td>
+<td>a script stops a background process</td>
+</tr>
+<tr>
+<td><code>git</code></td>
+<td>any git command</td>
+</tr>
+<tr>
+<td><code>fetch</code></td>
+<td>a fetch from a URL</td>
+</tr>
+<tr>
+<td><code>&lt;tool name&gt;</code></td>
+<td>a call to one of your own tools: <code>the &lt;tool name&gt;&#39;s &lt;parameter&gt;</code></td>
+</tr>
+</tbody></table>
+<p>There are also <code>after</code> hooks.  An <code>after</code> hook runs once the step is done, and <code>the result</code> is whatever the step gave back.</p>
+<p>Note that a hook can&#39;t change the step it is looking at, and it can&#39;t run a program, not even through a tool.  </p>
+<p>Hooks say yes or no, and that&#39;s it.</p>
+<h3>Ask Me Before a Push</h3>
+<p>A git push is (often) public and can be an egress mechanism for external communication, one leg of the <a href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/">lethal trifecta</a>.</p>
+<p>Let&#39;s say you want your agent to ask you before it pushes anything, so you can be sure.</p>
+<p>Here&#39;s a hook to accomplish that:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">before</span> <span class="tok-keyword">git</span>
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">git</span><span class="tok-keyword">'s</span> operation <span class="tok-keyword">is</span> <span class="tok-string">'push'</span>
+    <span class="tok-keyword">ask</span> <span class="tok-string">'Push this branch to origin?'</span> <span class="tok-keyword">with</span> <span class="tok-string">'yes'</span> <span class="tok-keyword">or</span> <span class="tok-string">'no'</span>
+    <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">result</span> <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-string">'yes'</span>
+      <span class="tok-keyword">reject</span> <span class="tok-string">'The human said no'</span>
+    <span class="tok-keyword">end</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>The <code>ask</code> command is special: only a human can answer it and the agent can&#39;t get around it.</p>
+<p>If you wander off and don&#39;t answer within 2 minutes, the result is <code>null</code>, which means no.</p>
+<h4>Git In ClankTalk</h4>
+<p>Note that the git in ClankTalk is already reasonably locked down:</p>
+<ul>
+<li><code>commit</code> takes only the files you name</li>
+<li><code>merge</code> only fast-forwards</li>
+<li><code>rebase</code> is all or nothing</li>
+<li><code>push</code> sends the current branch and never uses force</li>
+<li>Git hooks, pagers and filters are all turned off</li>
+</ul>
+<p>Also, if your project is a subfolder of a bigger repo, <code>git status</code>, <code>diff</code>, <code>show</code> and <code>log</code> only cover your project</p>
+<h3>Keeping Agents Out of Migrations</h3>
+<p>Maybe your company has a policy that all database migrations, found in <code>/migrations/</code> must be written by humans.  (Fair!)</p>
+<p>You could enforce this policy with the following hook:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">before</span> change
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> change<span class="tok-keyword">'s</span> path <span class="tok-keyword">is</span> <span class="tok-keyword">in</span> <span class="tok-path">@/migrations/</span>
+    <span class="tok-keyword">reject</span> <span class="tok-string">'A human writes the migrations'</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>Note that <code>change</code> covers every sort of file change: write, append, replace, line edits, move, delete and undo.  It also covers git commands that change files, like <code>git merge</code> or <code>git stash</code>, and a move into the folder, not just out of it.</p>
+<h3>Deploys</h3>
+<p>Let&#39;s say you&#39;re OK with your agent deploying to staging whenever it likes. (Brave!)</p>
+<p>Production, however, is a bit much, and you&#39;d like to be asked.</p>
+<p>Here&#39;s a <code>deploy</code> tool that asks you before any deploy to prod:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-comment"># Deploys the app: staging or prod.</span>
+<span class="tok-keyword">tool</span> deploy <span class="tok-keyword">with</span> target
+  <span class="tok-keyword">if</span> target <span class="tok-keyword">is</span> <span class="tok-string">'prod'</span>
+    <span class="tok-keyword">ask</span> <span class="tok-string">'Hey boss, deploy to prod?'</span> <span class="tok-keyword">with</span> <span class="tok-string">'yes'</span> <span class="tok-keyword">or</span> <span class="tok-string">'no'</span>
+    <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">result</span> <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-string">'yes'</span>
+      <span class="tok-keyword">reject</span> <span class="tok-string">'Not today, robot'</span>
+    <span class="tok-keyword">end</span>
+  <span class="tok-keyword">end</span>
+  <span class="tok-keyword">run</span> <span class="tok-string">'fly'</span> <span class="tok-keyword">with</span> <span class="tok-string">'deploy'</span>, <span class="tok-string">'--app'</span>, <span class="tok-string">'shop-'</span> + target <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">network</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>A <code>reject</code> in a tool stops the tool, and your agent gets the message back as an error.</p>
+<p>Now, if the rule lives somewhere else, say in a team policy, you can also hook into <em>your own tools</em>, not just the built-in steps.  Inside the hook, each parameter goes by its own name:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">before</span> deploy
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> deploy<span class="tok-keyword">'s</span> target <span class="tok-keyword">is</span> <span class="tok-string">'prod'</span>
+    <span class="tok-keyword">reject</span> <span class="tok-string">'Prod deploys go through CI'</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>By the way, that <code>&#39;shop-&#39; + target</code> might make you a little itchy around injection attacks, but <code>run</code> <em>never</em> goes through a shell.  </p>
+<p>Each value after <code>with</code> goes to <code>fly</code> as exactly one argument, so a strange <code>target</code> can only change the app name.  It can&#39;t sneak in a new flag or a second command.</p>
+<h3>Less Test Output</h3>
+<p>Test runners typically output tremendous amounts of text.  A failing suite can easily dump thousands of lines on your agent, eating up context.</p>
+<p>In ClankTalk, you can trim the output of a chatty programs when you run it, using the <code>keeping</code> clause:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">tool</span> run_tests
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm test'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">keeping</span> <span class="tok-keyword">the</span> <span class="tok-keyword">last</span> <span class="tok-number">200</span> <span class="tok-keyword">lines</span>
+<span class="tok-keyword">end</span>
+
+<span class="tok-keyword">tool</span> lint
+  <span class="tok-keyword">run</span> <span class="tok-string">'npx eslint .'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">keeping</span> <span class="tok-keyword">lines</span> <span class="tok-keyword">matching</span> pattern <span class="tok-string">/error/</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>You can keep <code>the first &lt;n&gt; lines</code>, <code>the last &lt;n&gt; lines</code>, both, or only <code>lines matching</code> a pattern.  </p>
+<p>ClankTalk puts a single line like <code>... 1834 lines cut ...</code> where the rest used to be.  You can add <code>or 20 KB</code> to any of these to cap the size, too.</p>
+<p>Nothing is lost, though: the result&#39;s <code>full</code> has every line, so your agent can dig in if it really needs to.</p>
+<p>The same <code>keeping</code> works for everything a script prints, with a line at the top of <code>AGENTS.talk</code>, like <code>limit output keeping the last 400 lines</code>.  The full text is then in <code>the previous output</code>.  ClankTalk already cuts at 1000 lines or 30 KB by default, so you will rarely need it.</p>
+<h3 id="audit"><a class="heading-link" href="#audit">ClankTalk Audit History</a></h3>
+<p>ClankTalk writes down every step that touches the world: every read, change, <code>run</code>, git command, <code>fetch</code>, <code>ask</code> and tool call, along with the script that did it.  You can watch it live:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-bash">tail -f .talk/audit/*.log</code></pre>
+</div>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-audit">-- session claude-code-4f2a --
+<span class="tok-comment">== </span><span class="tok-number">10:42:01</span><span class="tok-comment">  script 12  Raise the retries  (done, 4 steps) ==</span>
+  <span class="tok-keyword">in</span> <span class="tok-path">@/src/config.js</span>
+    <span class="tok-keyword">replace</span> <span class="tok-string">'retries: 3'</span> <span class="tok-keyword">with</span> <span class="tok-string">'retries: 5'</span>
+  run_tests
+<span class="tok-comment">--</span>
+<span class="tok-number">10:42:01</span>  <span class="tok-keyword">replace</span>  <span class="tok-path">src/config.js</span><span class="tok-comment">                             1 match, line 12</span>
+<span class="tok-number">10:42:01</span>  <span class="tok-keyword">tool</span>     <span class="tok-path">run_tests</span>
+<span class="tok-number">10:42:09</span>    <span class="tok-keyword">run</span>    <span class="tok-path">npm test</span><span class="tok-comment">                                  sandbox, local network, code 0, 7.9 s</span></code></pre>
+</div>
+<p>The history goes to <code>.talk/audit/</code>, one file a day, and scripts can&#39;t change it.  Your agent can read its own steps with <code>the audit</code>, which is handy when it wants to remember what it just did.</p>
+<p>By default, ClankTalk keeps three days of history.  </p>
+<p>If you wanted to keep a week, you could add this to your <code>AGENTS.talk</code>:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk">keep <span class="tok-keyword">audit</span> <span class="tok-keyword">for</span> <span class="tok-number">7</span> days
+<span class="tok-keyword">audit</span> <span class="tok-keyword">as</span> <span class="tok-keyword">json</span></code></pre>
+</div>
+<p>Adding <code>audit as json</code> makes each line of the file a JSON object, so <code>jq</code> and friends can work with them.</p>
+<h3>Sharing Tools</h3>
+<p>Once you have a nice set of GitHub tools, you&#39;ll probably want them grouped together and maybe moved out of your <code>AGENTS.talk</code> file.</p>
+<p>You can put them in their own <code>.talk</code> file and import it:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">import</span> <span class="tok-path">./talk/github.talk</span></code></pre>
+</div>
+<p>Note that a <code>./</code> path starts from the file doing the importing and <code>@/</code> starts from the project root.</p>
+<p>Just like <code>AGENTS.talk</code>, your agent can&#39;t change anything in <code>talk/</code>, or any <code>.talk</code> file for that matter, so your shared tools stay safe.</p>
+<h3 id="taint"><a class="heading-link" href="#taint">Taint &amp; Reading GitHub Issues</a></h3>
+<p>OK, now we are going to cover a feature that, we&#39;re going to be honest, we&#39;re not 100% sure on: tainting.</p>
+<p>Tainting has a long history in programming languages.  Perl&#39;s <a href="https://perldoc.perl.org/perlsec">taint mode</a>, for example, won&#39;t let data from outside the program, like command line arguments or environment variables, reach a shell command or a file write until you check it with a regular expression.</p>
+<p>We are trying to come up with something similar around <a href="https://simonwillison.net/2022/Sep/12/prompt-injection/">prompt injection</a>, and this is our current thinking on the problem.</p>
+<p>Let&#39;s motivate the discussion with an interesting use of agents near and dear to our hearts: sifting through issues on GitHub.</p>
+<p>Before we get into ClankTalk&#39;s taint infrastructure, let&#39;s set up a <em>subagent</em> with a restricted tool set to do GitHub issue analysis for us:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> secret ANTHROPIC_API_KEY <span class="tok-keyword">for</span> subagents
+use model <span class="tok-string">'claude-sonnet-5-5'</span> <span class="tok-keyword">for</span> subagents <span class="tok-keyword">with</span> secret ANTHROPIC_API_KEY
+
+<span class="tok-comment"># Shows a GitHub issue.</span>
+untrusted <span class="tok-keyword">tool</span> issue <span class="tok-keyword">with</span> id
+  <span class="tok-keyword">run</span> <span class="tok-string">'gh'</span> <span class="tok-keyword">with</span> <span class="tok-string">'issue'</span>, <span class="tok-string">'view'</span>, id <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">network</span>,
+    <span class="tok-keyword">reads</span> <span class="tok-keyword">of</span> <span class="tok-string">'~/.config/gh'</span>
+<span class="tok-keyword">end</span>
+
+<span class="tok-comment"># Summarizes the most important open issues.</span>
+<span class="tok-keyword">tool</span> summarize_issues
+  <span class="tok-keyword">run</span> <span class="tok-string">'Summarize the most important open issues'</span> <span class="tok-keyword">in</span> a subagent <span class="tok-keyword">with</span> only issue
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>A subagent is a separate model that can only call the tools you give it.  Here, the subagent can call <code>issue</code> and nothing else, and the tools you give a subagent can&#39;t write files, fetch or use git.  </p>
+<p>So even if a prompt injection happens in an issue and talks the subagent into something, there isn&#39;t much it can do.</p>
+<aside><p>In pi, a subagent uses pi&#39;s own model, so you don&#39;t need a key.</p>
+</aside><p>Don&#39;t get too comfortable with the subagent, though: it read the public issues, so its answer to the calling
+agent untrusted too.  It <em>taints</em> your session just like the issues would: yes, it&#39;s harder to pull off, but
+still possible.</p>
+<p>After your agent reads the sub-agents response, the whole session is <em>tainted</em>.</p>
+<h4>How Tainting Works</h4>
+<p>Three things can taint a ClankTalk session:</p>
+<ul>
+<li>a <code>fetch</code></li>
+<li>a call to an <code>untrusted tool</code></li>
+<li>the answer of a subagent</li>
+</ul>
+<p>Each time, ClankTalk saves a copy of the text in <code>.talk/untrusted/&lt;session&gt;/</code>, with where it came from and when.<br>Your agent cannot change or delete these files, so you can always see what it read.</p>
+<p>By default, while your session is tainted, two actions require confirmation:</p>
+<ul>
+<li>a <code>git push</code></li>
+<li>a <code>fetch</code> that sends a secret</li>
+</ul>
+<p>There are of course other actions that can potentially compromise you, and you can add them to taint checking:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk">taint asks <span class="tok-keyword">before</span> push, secrets, commit, <span class="tok-keyword">network</span> runs, new hosts</code></pre>
+</div>
+<p>where:</p>
+<ul>
+<li><code>commit</code>: a <code>git commit</code>.</li>
+<li><code>network runs</code>: a <code>run</code> or <code>start</code> with the network, or with no sandbox.</li>
+<li><code>new hosts</code>: a <code>fetch</code> to a host that is not in an <code>allow fetch from</code> line.  (A new host also asks in a clean session; this adds the list of inputs to that question.)</li>
+</ul>
+<p>For anything else, a hook can check <code>the session is untrusted</code> itself:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">before</span> deploy
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> session <span class="tok-keyword">is</span> untrusted
+    <span class="tok-keyword">reject</span> <span class="tok-string">'No deploys after reading untrusted text'</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<p>A hook can also list <code>the session&#39;s untrusted inputs</code>, if you want to say which ones are in the way.</p>
+<p>Now, why is the default to only ask on <code>push</code> and <code>fetch</code>?</p>
+<p>Because of the well known psychological problem of <a href="https://en.wikipedia.org/wiki/Decision_fatigue">decision fatigue</a>.  </p>
+<p>We are trying to balance security with usefulness of this features, so people actually use it.  We&#39;ll see how it goes.</p>
+<h4>Untainting</h4>
+<p>Taint stays until you approve the untrusted input.  It covers the whole project, not one conversation: if you resume a conversation, the injection is still in your agent&#39;s context, so a new session starts tainted too.  </p>
+<p>You can approve inputs in three places.</p>
+<p>When ClankTalk asks you about a risky action, the question gives the untrusted content:</p>
+<pre><code class="language-text">Push to origin? 2 untrusted inputs are not approved:
+tool issue (42), https://api.github.com/...
+Review them with: npx clank-talk taint
+</code></pre>
+<ul>
+<li><code>approve and untaint</code> says &quot;I read these, they are fine&quot;.  The inputs are approved, the action runs, and the session is clean again, so the next risky action asks nothing.</li>
+<li><code>yes, this time only</code> says &quot;let this action through, but I did not check the inputs&quot;.  The action runs, the inputs stay unapproved, and the next risky action asks again.</li>
+<li><code>no</code> stops the action.</li>
+</ul>
+<p>You can also use your terminal to look at tainted content:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-bash">$ npx clank-talk taint                  <span class="tok-comment"># list the inputs</span>
+$ npx clank-talk taint show <span class="tok-number">2</span>           <span class="tok-comment"># read one</span>
+$ npx clank-talk taint approve <span class="tok-number">1</span> <span class="tok-number">2</span>      <span class="tok-comment"># approve some</span>
+$ npx clank-talk taint approve --all    <span class="tok-comment"># approve all</span></code></pre>
+</div>
+<p>Your agent has no shell in ClankTalk, so it cannot run these commands.</p>
+<p>Or, without leaving your harness, ask your agent to run <code>taint review</code>.  It shows you a form with a table of the inputs that are not approved, and a box to approve each one.  Only you can fill in the form.</p>
+<p>With the ClankTalk plugin for Claude Code, pi or opencode, type <code>/taint</code> to read and approve the inputs, or <code>/taint clear</code> to approve them all.  In a terminal, <code>npx clank-talk taint --tui</code> opens a full-screen review with vi keys.  Your agent cannot run any of these.</p>
+<aside><p>In Claude Code, you can show ClankTalk in your status line with <code>npx clank-talk status-line</code>, which prints <code>clank-talk: on, untainted</code> or <code>clank-talk: off, tainted 3</code>.  Set it as the <code>command</code> of <code>statusLine</code> in your settings.</p>
+</aside><h4>LLM Judging</h4>
+<p>If you do not want to read every input yourself you can use a <em>judge</em> model can read them for you and say <code>clean</code>, <code>suspect</code> or <code>unsure</code>:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-bash">$ npx clank-talk taint judge --all
+$ npx clank-talk taint approve --clean</code></pre>
+</div>
+<p>Note that the judge reads the same text as your agent, so a prompt injection attack can fool it too.</p>
+<h4>Configuration</h4>
+<p>Here are all the configuration options for taint:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-comment"># on (the default), off, or required: required means no one can turn it off</span>
+taint required
+
+<span class="tok-comment"># how much of each untrusted input to keep for review (1 MB by default)</span>
+keep untrusted inputs up <span class="tok-keyword">to</span> <span class="tok-number">5</span> MB
+
+<span class="tok-comment"># the judge: a model that reads each input, and says clean, suspect or unsure</span>
+use model <span class="tok-string">'claude-haiku-5-5'</span> <span class="tok-keyword">for</span> judging <span class="tok-keyword">with</span> secret ANTHROPIC_API_KEY
+
+<span class="tok-comment"># the judge needs the key, as a subagent does</span>
+<span class="tok-keyword">allow</span> secret ANTHROPIC_API_KEY <span class="tok-keyword">for</span> subagents
+
+<span class="tok-comment"># judge each new input when it comes in (else: npx clank-talk taint judge)</span>
+judge untrusted inputs automatically
+
+<span class="tok-comment"># a clean verdict approves the input, so you get no question for it</span>
+let <span class="tok-keyword">the</span> judge approve clean inputs</code></pre>
+</div>
+<ul>
+<li><code>npx clank-talk taint off</code> and <code>npx clank-talk taint on</code> change the setting from your terminal.  They win over <code>taint on</code> and <code>taint off</code>, but not over <code>taint required</code>.</li>
+<li><code>judge with prompt &#39;...&#39;</code> replaces the prompt of the judge.</li>
+<li>A <a href="policy.html">team policy</a> can hold <code>taint required</code> too.</li>
+</ul>
+<h3 id="on-off"><a class="heading-link" href="#on-off">Turning ClankTalk On and Off</a></h3>
+<p>With the ClankTalk plugin, ClankTalk is on in a project that has an <code>AGENTS.talk</code>: your agent gets <code>clank_talk</code>, and the harness blocks its other tools.  Type <code>/clank-talk off</code> or <code>/clank-talk on</code> to change that for the current session, and <code>/clank-talk</code> to see which tools are allowed.</p>
+<p>Your <code>AGENTS.talk</code> can keep it on, and allow some other tools by name:</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-comment"># /clank-talk off is refused</span>
+require clank-talk
+
+<span class="tok-comment"># these harness tools stay available</span>
+<span class="tok-keyword">allow</span> harness tools Read, Grep
+
+<span class="tok-comment"># these too, but their results are untrusted and taint the session</span>
+<span class="tok-keyword">allow</span> untrusted harness tools WebFetch</code></pre>
+</div>
+<p>ClankTalk records each call of an allowed tool in its audit.  An allowed tool can never change <code>.talk/</code> or a <code>.talk</code> file.</p>
+<h3>Creating An Agents.talk File</h3>
+<p>A <code>AGENTS.talk</code> file is declared in the following order:</p>
+<ol>
+<li>The top lines: <code>allow</code>, <code>use model</code>, <code>limit</code>, <code>keep audit</code> and <code>taint</code></li>
+<li>Imports and tools</li>
+<li>Hooks, which run in the order you write them</li>
+</ol>
+<p>See the <a href="agents-talk.html">AGENTS.talk reference</a> for more details.</p>
+<p>A suggested prompt for a non-ClankTalk agent to generate an <code>AGENTS.talk</code> is:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-md">Read &lt;link&gt; and walk me through creating an AGENTS.talk file for this project</code></pre>
+</div>
+<h3>Policies for Teams</h3>
+<p>If you&#39;re running agents for a team, you probably want some rules that individual projects can&#39;t loosen.  That&#39;s what a policy is for: a file that ships with the harness and sets limits no <code>AGENTS.talk</code> can widen.</p>
+<p>See <a href="policy.html">Policies for Teams</a> for the details.</p>
+<h2 id="reading-output"><a class="heading-link" href="#reading-output">Reading ClankTalk</a></h2>
+<p>We don&#39;t expect you to write much ClankTalk, but you are going to probably want to read some of it.  We hope that it&#39;s pretty obvious what&#39;s going on, at least when compared with, say, bash.</p>
+<p>Still, probably worth a quick tour of the language:</p>
+<ul>
+<li><code>#</code> starts a comment, and blocks close with <code>end</code>.</li>
+<li><code>the</code> is optional, and <code>robot&#39;s name</code>, <code>robot.name</code> and <code>the name of robot</code> all mean the same thing.</li>
+<li><code>it</code> (or <code>the result</code>) is whatever the last command gave back.</li>
+<li><code>@/</code> paths start at the project root, and <code>./</code> paths at the current folder.</li>
+<li>Lines that start with <code>|</code> are text, exactly as typed, usually code.</li>
+</ul>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-talk"><span class="tok-comment"># this is a comment</span>
+<span class="tok-keyword">set</span> robot <span class="tok-keyword">to</span> {name: <span class="tok-string">'clank'</span>, tags: [<span class="tok-string">'agent'</span>, <span class="tok-string">'robot'</span>]}
+<span class="tok-keyword">print</span> <span class="tok-string">'Hello, ${robot's name}!'</span>
+
+<span class="tok-keyword">if</span> robot<span class="tok-keyword">'s</span> tags <span class="tok-keyword">contains</span> <span class="tok-string">'agent'</span>
+  <span class="tok-keyword">print</span> <span class="tok-string">'an agent'</span>
+<span class="tok-keyword">end</span>
+
+<span class="tok-keyword">replace</span>
+<span class="tok-string">| const retries = 3;</span>
+<span class="tok-keyword">with</span>
+<span class="tok-string">| const retries = 5;</span>
+<span class="tok-keyword">in</span> <span class="tok-path">./src/config.js</span></code></pre>
+</div>
+<p>If you run into something you don&#39;t recognize, every command is in the <a href="reference.html">Docs for Agents</a>.</p>
+<h3>Questions From ClankTalk</h3>
+<p>ClankTalk will occasionally stop to ask you something.  You get a question when:</p>
+<ul>
+<li>Your agent fetches from a host for the first time (unless an <code>allow fetch from</code> line covers it)</li>
+<li>Your session is tainted and your agent tries something on the <code>taint asks before</code> list, like a push</li>
+<li>A hook asks you, with <code>ask</code></li>
+<li>Your agent asks you directly, also with <code>ask</code></li>
+</ul>
+<h3 id="undo"><a class="heading-link" href="#undo">Undo</a></h3>
+<p>The ClankTalk runtime maintains an undo list of all operations it has seen, so either an agent or you, the human,
+can request that changes be undone.</p>
+<p>Here is an example of an agent making a change, running a test and, if the test fails, undoing the change:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-talk"><span class="tok-keyword">in</span> <span class="tok-path">./src/config.js</span> <span class="tok-keyword">replace</span> <span class="tok-string">'retries: 3'</span> <span class="tok-keyword">with</span> <span class="tok-string">'retries: 5'</span>
+run_test_file <span class="tok-path">@/test/config.test.js</span>
+<span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">result</span><span class="tok-keyword">'s</span> code <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-number">0</span>
+  <span class="tok-keyword">undo</span>
+  <span class="tok-keyword">print</span> <span class="tok-string">'The test failed, so the change is undone'</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<h2 id="harness-notes"><a class="heading-link" href="#harness-notes">Harness and Agent Notes</a></h2>
+<div class="construction"><p>Work in progress</p>
+<p>Notes for specific harnesses and agents are coming soon.</p>
+</div><h2 id="limitations"><a class="heading-link" href="#limitations">Limitations</a></h2>
+<p>We hope that ClankTalk is a step forward in providing a safer environment for agents to work in.  It can feel
+a little constricting at first when you initially build out your <code>AGENTS.talk</code> file, but that&#39;s probably a good thing.</p>
+<p>That being said, ClankTalk isn&#39;t foolproof:</p>
+<ul>
+<li>A <code>run</code> without <code>in a sandbox</code> is where the sandbox ends.</li>
+<li>The sandbox limits files and the network, not CPU or memory.</li>
+<li>On Windows, there is no sandbox yet: <code>in a sandbox</code> is an error. To use the sandbox, run your agent and ClankTalk inside WSL2, where the Linux sandbox (<code>bubblewrap</code>) works. WSL1 does not work.</li>
+<li>On Linux, the sandbox protects hidden files and <code>.talk</code> files only at the top of the project, and only those that exist when the program starts.</li>
+<li>Web pages and tool output can still try to steer your agent. ClankTalk tries to keep the damage contained, but cannot stop a sufficiently determined and corrupted agent.</li>
+<li>Secrets are safe only in <code>.env</code> files.  If they end up in other spots, they can be compromised.</li>
+<li><code>git push</code> to a remote folder outside the project runs that repo&#39;s hooks.</li>
+</ul>
+<p>And there are probably holes in the implementation as it stands.  We&#39;ll try to get them patched up, but we think the basic idea is sound.</p>
+<p>Hope it helps!</p>
+</div>
+<script src="js/copy.js"></script>
+
+</main>
+<footer class="footer">
+  <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a>
+  &middot; BSD 3-Clause License
+  &middot; Big Sky Software
+</footer>
+</body>
+</html>
