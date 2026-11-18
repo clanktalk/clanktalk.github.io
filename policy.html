@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Policies for Teams - clank-talk</title>
+  <link rel="canonical" href="https://clank.talk/policy.html">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<main class="content">
+<div class="features"><img class="page-robot" src="img/clanktalk-robot.png" alt="A friendly robot"><p><a href="./">Home</a> | <a href="docs.html">Docs for Humans</a> | <a href="reference.html">Docs for Agents</a> | <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a></p><h1>Policies for Teams</h1>
+<p>A ClankTalk policy is a file of rules that your organization ships with its agent harness. It sets limits for every agent session, and no project can widen them.</p>
+<h2 id="why"><a class="heading-link" href="#why">Why a Policy</a></h2>
+<p>Each project has an <code>AGENTS.talk</code> file. The developers of the project write it, and it says what agents can do in that project. That is right for one project, but an organization needs rules that hold everywhere:</p>
+<ul>
+<li>Every program that an agent starts runs in an OS sandbox.</li>
+<li>Agents reach only approved hosts, with only approved credentials.</li>
+<li>Agents do not push code, or change files in some sessions.</li>
+<li>There is a full record of each session, kept for the time that compliance requires, in a place that the project cannot change.</li>
+</ul>
+<p>A policy gives these rules. The policy is written in ClankTalk, the same language as <code>AGENTS.talk</code>, so security reviewers can read it.</p>
+<h2 id="example"><a class="heading-link" href="#example">An Example Policy</a></h2>
+<div class="window">
+<div class="window-title">policy.talk</div>
+<pre><code class="language-talk">policy <span class="tok-string">'acme-secure'</span>
+
+<span class="tok-comment"># every program runs in the OS sandbox</span>
+require <span class="tok-keyword">sandbox</span> <span class="tok-keyword">for</span> <span class="tok-keyword">run</span>, <span class="tok-keyword">start</span>
+
+<span class="tok-comment"># ceilings: an AGENTS.talk can allow only a part of these</span>
+limit <span class="tok-keyword">fetch</span> from <span class="tok-string">'api.github.com'</span>, <span class="tok-string">'*.acme.internal'</span>
+limit <span class="tok-keyword">env</span> <span class="tok-keyword">to</span> PATH, HOME, JAVA_HOME
+limit <span class="tok-keyword">changes</span> <span class="tok-keyword">to</span> <span class="tok-path">@/.github/</span>
+limit secrets <span class="tok-keyword">to</span> GITHUB_TOKEN
+limit output <span class="tok-keyword">keeping</span> <span class="tok-keyword">the</span> <span class="tok-keyword">first</span> <span class="tok-number">200</span> <span class="tok-keyword">and</span> <span class="tok-keyword">the</span> <span class="tok-keyword">last</span> <span class="tok-number">200</span> <span class="tok-keyword">lines</span> <span class="tok-keyword">or</span> <span class="tok-number">20</span> KB
+
+<span class="tok-comment"># things that are off, whatever AGENTS.talk says</span>
+deny <span class="tok-keyword">git</span> <span class="tok-keyword">push</span>
+deny <span class="tok-keyword">start</span>
+deny subagents
+
+<span class="tok-comment"># a record for compliance, and a copy that the project cannot touch</span>
+keep <span class="tok-keyword">audit</span> <span class="tok-keyword">for</span> at least <span class="tok-number">30</span> days
+<span class="tok-keyword">audit</span> also <span class="tok-keyword">to</span> <span class="tok-string">'/var/log/clank-talk/'</span>
+
+<span class="tok-comment"># hooks that always run first; AGENTS.talk hooks run after them</span>
+<span class="tok-keyword">before</span> <span class="tok-keyword">fetch</span>
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">fetch</span><span class="tok-keyword">'s</span> method <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-string">'GET'</span>
+    <span class="tok-keyword">reject</span> <span class="tok-string">'Only GET in this session'</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+<h2 id="controls"><a class="heading-link" href="#controls">The Controls</a></h2>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>require sandbox for run, start</code></td>
+<td>A tool that runs or starts a program with no <code>in a sandbox</code> is an error.</td>
+</tr>
+<tr>
+<td><code>limit fetch from &#39;&lt;host&gt;&#39;, ...</code></td>
+<td>Agents reach only these hosts. A host outside the list is refused, with no question to the user.</td>
+</tr>
+<tr>
+<td><code>limit env to &lt;NAME&gt;, ...</code></td>
+<td>Programs get only these environment variables.</td>
+</tr>
+<tr>
+<td><code>limit changes to &lt;path&gt;, ...</code></td>
+<td>Projects can allow changes only to these hidden files and folders.</td>
+</tr>
+<tr>
+<td><code>limit secrets to &lt;NAME&gt;, ...</code></td>
+<td>Projects can use only these secrets.</td>
+</tr>
+<tr>
+<td><code>deny secrets</code></td>
+<td>Projects cannot use secrets.</td>
+</tr>
+<tr>
+<td><code>taint required</code></td>
+<td>Session taint stays on: a project cannot turn it off, and neither can <code>npx clank-talk taint off</code>.</td>
+</tr>
+<tr>
+<td><code>limit output keeping &lt;lines&gt; [or &lt;n&gt; KB]</code></td>
+<td>Agents see only these lines of the output of one script: the first, the last, both, or lines matching a pattern.</td>
+</tr>
+<tr>
+<td><code>deny git push</code></td>
+<td>No push.</td>
+</tr>
+<tr>
+<td><code>deny start</code></td>
+<td>No background programs, such as servers.</td>
+</tr>
+<tr>
+<td><code>deny run</code></td>
+<td>No programs.</td>
+</tr>
+<tr>
+<td><code>deny fetch</code></td>
+<td>No network access from scripts.</td>
+</tr>
+<tr>
+<td><code>deny writes</code></td>
+<td>A read-only session: no file changes, and no git changes. Add <code>deny run</code> and <code>deny start</code> for a session where nothing can write.</td>
+</tr>
+<tr>
+<td><code>deny subagents</code></td>
+<td>No subagents.</td>
+</tr>
+<tr>
+<td><code>deny trust</code></td>
+<td>Projects cannot have <code>trust fetch from</code>, so all fetched text is untrusted.</td>
+</tr>
+<tr>
+<td><code>keep audit for at least &lt;n&gt; days</code></td>
+<td>The audit is kept for at least this many days. A project cannot keep it for fewer.</td>
+</tr>
+<tr>
+<td><code>audit also to &#39;&lt;folder&gt;&#39;</code></td>
+<td>A copy of the audit goes to a folder outside the project. This copy is never deleted by ClankTalk.</td>
+</tr>
+<tr>
+<td><code>before ...</code> and <code>after ...</code> hooks</td>
+<td>Hooks that run before the hooks of the project. A project cannot remove them.</td>
+</tr>
+</tbody></table>
+<p>Each rule applies when <code>AGENTS.talk</code> loads, and again at each step while a script runs. A script cannot get around a rule.</p>
+<h2 id="conflicts"><a class="heading-link" href="#conflicts">When a Project Goes Past the Policy</a></h2>
+<p>A conflict is an error, not a silent change. If <code>AGENTS.talk</code> allows more than the policy, nothing runs until the project is fixed. The error names both files and both lines:</p>
+<pre><code class="language-text">AGENTS.talk 1:1 &#39;allow fetch from &#39;evil.example&#39;&#39; is outside the policy: policy.talk 5:1 limits fetch to api.github.com, *.acme.internal
+</code></pre>
+<h2 id="deploy"><a class="heading-link" href="#deploy">Deploying a Policy</a></h2>
+<p>The harness starts ClankTalk with the policy file. The file lives with the harness, outside every project, so agents cannot read or change it.</p>
+<ul>
+<li><strong>MCP server:</strong> <code>clank-talk-mcp --policy /etc/clank-talk/policy.talk --policy-hash &lt;sha256&gt;</code></li>
+<li><strong>pi:</strong> <code>pi --clank-policy /etc/clank-talk/policy.talk --clank-policy-hash &lt;sha256&gt;</code></li>
+<li><strong>Your own harness:</strong> <code>run(script, { policy: { name, source } })</code></li>
+</ul>
+<p>With the hash, ClankTalk refuses to start if the policy file was changed.</p>
+<h2 id="evidence"><a class="heading-link" href="#evidence">Evidence</a></h2>
+<p>The header of each script in the audit names the policy and a short hash of it:</p>
+<div class="window">
+<div class="window-title">&nbsp;</div>
+<pre><code class="language-audit"><span class="tok-comment">== </span><span class="tok-number">10:42:01</span><span class="tok-comment">  script 12 (main)  done  14 steps  (policy acme-secure 3f9a2c1b) ==</span></code></pre>
+</div>
+<p>Thus a session that ran with no policy, or with a changed policy, shows in the audit. The goal is a record that is tamper-evident: a change cannot be silent.</p>
+<h2 id="limits"><a class="heading-link" href="#limits">Limits</a></h2>
+<ul>
+<li>A policy limits what ClankTalk does. It does not limit other tools that a harness gives to the agent. Turn those tools off in the harness.</li>
+<li>The OS sandbox limits files and the network, not CPU or memory.</li>
+<li>A person with access to the machine can start a session without the policy. The audit header shows it.</li>
+</ul>
+</div><script src="js/copy.js"></script>
+
+</main>
+<footer class="footer">
+  <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a>
+  &middot; BSD 3-Clause License
+  &middot; Big Sky Software
+</footer>
+</body>
+</html>

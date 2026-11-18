@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AGENTS.talk Reference - clank-talk</title>
+  <link rel="canonical" href="https://clank.talk/agents-talk.html">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<main class="content">
+<div class="features"><img class="page-robot" src="img/clanktalk-robot.png" alt="A friendly robot"><p><a href="./">Home</a> | <a href="docs.html">Docs for Humans</a> | <a href="policy.html">Policies for Teams</a> | <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a></p><h1>AGENTS.talk Reference</h1>
+<p>Every line that <code>AGENTS.talk</code> can hold. For a guided tour, read <a href="docs.html#agents-talk">Your AGENTS.talk</a>. For rules across an organization, read <a href="policy.html">Policies for Teams</a>.</p>
+<ul class="areas">
+<li><a href="#top-lines">Top Lines</a></li>
+<li><a href="#tools">Tools</a></li>
+<li><a href="#hooks">Hooks</a></li>
+<li><a href="#hook-steps">Hook Steps</a></li>
+</ul><h2 id="top-lines">Top Lines</h2><p>At the top of AGENTS.talk: what scripts and programs can reach, and how the session is recorded.</p>
+<h3>allow</h3>
+<pre><code class="language-text">allow env &lt;NAME&gt;, ... | allow changes to &lt;path&gt;, ... | allow fetch from &#39;&lt;host&gt;&#39; or &lt;url pattern&gt;, ... | allow secret &lt;NAME&gt; for fetch to &#39;&lt;host&gt;&#39; or &lt;url pattern&gt;, ... | allow secret &lt;NAME&gt; for run | allow secret &lt;NAME&gt; for subagents | allow [untrusted] harness tools &lt;name&gt; or &#39;&lt;pattern&gt;&#39;, ... | require clank-talk | use model &#39;&lt;id&gt;&#39; for subagents [with secret &lt;NAME&gt;] | use model &#39;&lt;id&gt;&#39; for judging [with secret &lt;NAME&gt;]
+</code></pre>
+<ul>
+<li>Allow environment variables, changes to hidden files, fetch hosts and secrets. Only at the top of AGENTS.talk.</li>
+<li>&#39;allow env&#39; lists the environment variables that run passes on.</li>
+<li>&#39;allow changes to&#39; lists hidden files and folders (names that start with .) that scripts can change. A folder allows all of its files.</li>
+<li>&#39;allow fetch from&#39; lists the hosts that fetch can reach with no question. &#39;<em>.github.com&#39; allows the hosts under github.com. &#39;</em>&#39; allows every public host, and each run then gives a warning.</li>
+<li>A URL pattern allows less than a host: <a href="http://localhost:5173/">http://localhost:5173/</a> allows one port. The scheme and the port must be equal. *. in the host is one more part.</li>
+<li>In a URL pattern, a path that ends in / allows all paths below it. * is any text in one part of the path, and ** is any number of parts.</li>
+<li>&#39;allow secret ... for fetch to&#39; lets scripts use a secret, and names the hosts that it can go to. The fetch question still comes.</li>
+<li>&#39;allow secret ... for run&#39; gives the secret to a run or start in a tool, with &#39;using secret&#39;.</li>
+<li>A name cannot be in both &#39;allow env&#39; and &#39;allow secret&#39;. A secret cannot go to &#39;*&#39;.</li>
+<li>&#39;require clank-talk&#39; keeps ClankTalk on in the harness: the agent can use only clank_talk, and /clank-talk off is refused. With no line, ClankTalk is on in a project that has an AGENTS.talk.</li>
+<li>&#39;allow harness tools Read, Grep&#39; lets the agent use these other harness tools while ClankTalk is on. In a name in quotes, * is any text: &#39;mcp__github__*&#39;. Each call of an allowed tool goes in the audit.</li>
+<li>&#39;allow untrusted harness tools WebFetch&#39; also makes their results untrusted inputs, which taint the session. WebFetch and WebSearch are always untrusted.</li>
+<li>&#39;use model&#39; sets the model for subagents. pi lends its own model. Other harnesses need a key from &#39;allow secret ... for subagents&#39;.</li>
+<li>&#39;use model ... for judging&#39; sets the model of the judge, which reads untrusted inputs. With no line, the judge uses the subagent model.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">allow</span> <span class="tok-keyword">env</span> PATH, HOME</code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> <span class="tok-keyword">changes</span> <span class="tok-keyword">to</span> <span class="tok-path">@/.github/</span>, <span class="tok-path">@/.gitignore</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> <span class="tok-keyword">fetch</span> from <span class="tok-path">http://localhost:5173/</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> secret GITHUB_TOKEN <span class="tok-keyword">for</span> <span class="tok-keyword">fetch</span> <span class="tok-keyword">to</span> <span class="tok-path">https://api.github.com/repos/bigskysoftware/</span></code></pre>
+<h3>limit</h3>
+<pre><code class="language-text">limit output keeping the first &lt;n&gt; lines | the last &lt;n&gt; lines | the first &lt;n&gt; and the last &lt;n&gt; lines | lines matching pattern /x/ [or &lt;n&gt; KB]
+</code></pre>
+<p>Choose the print output that the agent sees from one script, with the same forms as run ... keeping. Only at the top of AGENTS.talk, or in a policy. One line takes the place of the cut lines, and the previous output has all of them. AGENTS.talk cuts first, then the policy, then the host (1000 lines or 30 KB).</p>
+<p class="examples-label">Examples</p><pre><code class="language-talk">limit output <span class="tok-keyword">keeping</span> <span class="tok-keyword">the</span> <span class="tok-keyword">first</span> <span class="tok-number">200</span> <span class="tok-keyword">and</span> <span class="tok-keyword">the</span> <span class="tok-keyword">last</span> <span class="tok-number">200</span> <span class="tok-keyword">lines</span></code></pre>
+<pre><code class="language-talk">limit output <span class="tok-keyword">keeping</span> <span class="tok-keyword">the</span> <span class="tok-keyword">last</span> <span class="tok-number">400</span> <span class="tok-keyword">lines</span> <span class="tok-keyword">or</span> <span class="tok-number">20</span> KB</code></pre>
+<h3>audit</h3>
+<pre><code class="language-text">the audit | audit as json (in AGENTS.talk) | keep audit for &lt;n&gt; days (in AGENTS.talk)
+</code></pre>
+<ul>
+<li>The audit records every step that touches the world: reads, changes, run, git, fetch, ask and tool calls.</li>
+<li>&#39;the audit&#39; is this session&#39;s records. Each record has time, script, kind, target, details and from.</li>
+<li>The host writes the records to .talk/audit/<date>.log. Scripts cannot change it.</li>
+<li>With &#39;audit as json&#39; in AGENTS.talk, the host writes JSON Lines.</li>
+<li>The host keeps 3 days of files, or the days in &#39;keep audit for 7 days&#39; in AGENTS.talk.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">for</span> step <span class="tok-keyword">in</span> <span class="tok-keyword">the</span> <span class="tok-keyword">audit</span>
+  <span class="tok-keyword">if</span> step<span class="tok-keyword">'s</span> kind <span class="tok-keyword">is</span> <span class="tok-string">'write'</span>
+    <span class="tok-keyword">print</span> step<span class="tok-keyword">'s</span> target
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+<h3>taint</h3>
+<pre><code class="language-text">taint on | taint off | taint required | taint asks before &lt;push, secrets, commit, network runs, new hosts | nothing&gt; | keep untrusted inputs up to &lt;n&gt; MB | let the judge approve clean inputs | judge untrusted inputs automatically | judge with prompt &#39;&lt;text&gt;&#39; | trust fetch from &lt;host or URL&gt;, ...
+</code></pre>
+<ul>
+<li>Session taint. After text from fetch, an untrusted tool or a subagent, the session is untrusted until the human approves each input. Only at the top of AGENTS.talk.</li>
+<li>In a script, &#39;taint review&#39; asks the human to approve inputs: see help untrusted.</li>
+<li>&#39;taint on&#39; is the default. &#39;taint off&#39; turns it off. &#39;taint required&#39; keeps it on, also against &#39;npx clank-talk taint off&#39;.</li>
+<li>&#39;taint asks before&#39; lists what asks the human while inputs are not approved. The default is push and secrets (a fetch with a secret). &#39;network runs&#39; is a run or start with network or with no sandbox. &#39;new hosts&#39; is a fetch to a host not in &#39;allow fetch from&#39;. &#39;nothing&#39; asks nothing, and still keeps the inputs.</li>
+<li>&#39;keep untrusted inputs up to 5 MB&#39; sets how much of each input .talk/untrusted/ keeps. The default is 1 MB.</li>
+<li>&#39;trust fetch from <a href="https://registry.npmjs.org/clank-talk">https://registry.npmjs.org/clank-talk</a>&#39; trusts the text from those URLs (after redirects), so a fetch of them does not taint. The same patterns as &#39;allow fetch from&#39;. A trusted URL is also allowed: a fetch of it asks nothing. &#39;*&#39; trusts every public host, and each run then gives a warning.</li>
+<li>The judge is a model that reads an input and says clean, suspect or unsure. &#39;judge untrusted inputs automatically&#39; runs it on each new input; else the human runs &#39;npx clank-talk taint judge&#39;.</li>
+<li>&#39;let the judge approve clean inputs&#39; lets a clean verdict approve the input. &#39;judge with prompt&#39; replaces the judge&#39;s prompt. &#39;use model ... for judging&#39; sets its model.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk">taint required
+taint asks <span class="tok-keyword">before</span> push, secrets, commit
+keep untrusted inputs up <span class="tok-keyword">to</span> <span class="tok-number">5</span> MB</code></pre>
+<pre><code class="language-talk">use model <span class="tok-string">'claude-haiku-5-5'</span> <span class="tok-keyword">for</span> judging <span class="tok-keyword">with</span> secret ANTHROPIC_API_KEY
+<span class="tok-keyword">allow</span> secret ANTHROPIC_API_KEY <span class="tok-keyword">for</span> subagents
+judge untrusted inputs automatically</code></pre>
+<h2 id="tools">Tools</h2><p>What your agent can run.</p>
+<h3>tool</h3>
+<pre><code class="language-text">[untrusted] tool &lt;name&gt; [with &lt;param&gt;, ...] ... end
+</code></pre>
+<ul>
+<li>Define a tool that the agent can call by name. Only in AGENTS.talk.</li>
+<li>The &#39;#&#39; comment lines just above the tool are its help.</li>
+<li>The tool gives back the result. A call is also a value, and then the result does not change: set tests to run_tests.</li>
+<li>If a tool brings in text from the network (curl, gh, npm view), mark it &#39;untrusted&#39;. Then its result is untrusted.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-comment"># Runs one test class.</span>
+<span class="tok-keyword">tool</span> run_test <span class="tok-keyword">with</span> name
+  <span class="tok-keyword">run</span> <span class="tok-string">'mvn'</span> <span class="tok-keyword">with</span> <span class="tok-string">'test'</span>, <span class="tok-string">'-Dtest='</span> + name
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-comment"># Shows a GitHub issue.</span>
+untrusted <span class="tok-keyword">tool</span> issue <span class="tok-keyword">with</span> id
+  <span class="tok-keyword">run</span> <span class="tok-string">'gh'</span> <span class="tok-keyword">with</span> <span class="tok-string">'issue'</span>, <span class="tok-string">'view'</span>, id
+<span class="tok-keyword">end</span></code></pre>
+<h3>run</h3>
+<pre><code class="language-text">run &lt;program and args&gt; | run &lt;program&gt; with &lt;arg&gt;, ... [using secret &lt;NAME&gt;, ...] [in a sandbox [with network, local network, writes to &lt;path&gt;, reads of &lt;path&gt;]] [within &lt;duration&gt;] [keeping the first &lt;n&gt; lines | the last &lt;n&gt; lines | the first &lt;n&gt; and the last &lt;n&gt; lines | lines matching pattern /x/]
+</code></pre>
+<ul>
+<li>Run a program with no shell. Only in a tool. The result is { code, output }.</li>
+<li>Write the program in the tool: run &#39;npm&#39; with name, not run name.</li>
+<li>Only the variables in &#39;allow env&#39; go to the program.</li>
+<li>A file value is its path, such as &#39;./src/a.js&#39;. A list gives one argument for each item.</li>
+<li>To give a tool a file, pass a path, such as @/test/app.test.js, not a string. A path outside the project is an error.</li>
+<li>In run &#39;npm test ${name}&#39;, each ${} is one whole argument, also with spaces in it.</li>
+<li>An argument that does not start with text written in the tool must not start with &#39;-&#39;. Put &#39;--&#39; before it if the program takes &#39;--&#39;.</li>
+<li>A program that PATH finds inside the project is an error. To run it, write its path, such as &#39;./node_modules/.bin/jest&#39;.</li>
+<li>&#39;in a sandbox&#39; runs the program in an OS sandbox. It can write only the project (not .git, .talk or hidden files). It can read only system folders, its install folder and tool caches. It has no network.</li>
+<li>&#39;with network&#39; allows the network, and &#39;with local network&#39; allows localhost only. &#39;writes to&#39; and &#39;reads of&#39; add paths.</li>
+<li>On an OS with no sandbox, a sandboxed run is an error, and nothing runs.</li>
+<li>&#39;using secret NPM_TOKEN&#39; (or &#39;using secrets A, B&#39;) gives the program the secret as an environment variable. AGENTS.talk needs &#39;allow secret NPM_TOKEN for run&#39;. The value shows as <secret NPM_TOKEN> in the output.</li>
+<li>&#39;run <prompt> in a subagent with only <tools>&#39; gives the task to a model that can call only those tools. Its answer is untrusted.</li>
+<li>&#39;keeping&#39; cuts the output in the result to those lines, and &#39;or 20 KB&#39; also limits the size. One line takes the place of the cut lines. The result&#39;s full has all of them.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">tool</span> test
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm test'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">within</span> <span class="tok-number">10</span> minutes <span class="tok-keyword">keeping</span> <span class="tok-keyword">the</span> <span class="tok-keyword">last</span> <span class="tok-number">200</span> <span class="tok-keyword">lines</span>
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">tool</span> lint
+  <span class="tok-keyword">run</span> <span class="tok-string">'npx eslint .'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">keeping</span> <span class="tok-keyword">lines</span> <span class="tok-keyword">matching</span> pattern <span class="tok-string">/error/</span>
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">tool</span> install
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm install'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">network</span>, <span class="tok-keyword">writes</span> <span class="tok-keyword">to</span> <span class="tok-string">'~/.npm'</span>
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">tool</span> publish
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm publish'</span> using secret NPM_TOKEN
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-comment"># Summarizes the most important open issues.</span>
+<span class="tok-keyword">tool</span> summarize_issues
+  <span class="tok-keyword">run</span> <span class="tok-string">'Summarize the most important open issues'</span> <span class="tok-keyword">in</span> a subagent <span class="tok-keyword">with</span> only gh_issues
+<span class="tok-keyword">end</span></code></pre>
+<h3>start</h3>
+<pre><code class="language-text">start &lt;program&gt; [with &lt;arg&gt;, ...] as &lt;name&gt; [using secret &lt;NAME&gt;, ...] [in a sandbox [with ...]] | start &lt;prompt&gt; as &lt;name&gt; in a subagent with only &lt;tool&gt;, ...
+</code></pre>
+<ul>
+<li>Start a program in the background, such as a dev server, with no shell. Only in a tool.</li>
+<li>The program keeps running after the script. The host stops all of them when the session ends.</li>
+<li>Write the program in the tool, as in run. &#39;using secret&#39; and &#39;in a sandbox&#39; work as in run.</li>
+<li>&#39;process <name>&#39; has name, status (running, exited, stopped), code and output. &#39;the processes&#39; lists them.</li>
+<li>&#39;start <prompt> as <name> in a subagent with only <tools>&#39; runs a subagent in the background. Its answer is the output of the process.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">tool</span> site_server
+  <span class="tok-keyword">start</span> <span class="tok-string">'npm run serve-site'</span> <span class="tok-keyword">as</span> <span class="tok-string">'site'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span>
+<span class="tok-keyword">end</span></code></pre>
+<h3>process</h3>
+<pre><code class="language-text">process &lt;name&gt; | the processes
+</code></pre>
+<p>A background process that a tool started: name, status (running, exited or stopped), code, and output (the last 64 KB). &#39;of&#39; also works: the output of process &#39;site&#39;. &#39;the processes&#39; lists them, newest first.</p>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">print</span> <span class="tok-keyword">the</span> output <span class="tok-keyword">of</span> <span class="tok-keyword">process</span> <span class="tok-string">'site'</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">if</span> <span class="tok-keyword">the</span> status <span class="tok-keyword">of</span> <span class="tok-keyword">process</span> <span class="tok-string">'site'</span> <span class="tok-keyword">is</span> <span class="tok-string">'running'</span>
+  <span class="tok-keyword">stop</span> <span class="tok-keyword">process</span> <span class="tok-string">'site'</span>
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">print</span> <span class="tok-keyword">the</span> <span class="tok-keyword">processes</span></code></pre>
+<h3>import</h3>
+<pre><code class="language-text">import &lt;path to a .talk file&gt;
+</code></pre>
+<p>Load the tools from another .talk file. Only in AGENTS.talk and the files that it imports. ./ starts from the importing file, @/ from the project root.</p>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">import</span> <span class="tok-path">./talk/git.talk</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">import</span> <span class="tok-path">@/talk/maven.talk</span></code></pre>
+<h2 id="hooks">Hooks</h2><p>Your rules, before and after each step.</p>
+<h3>before</h3>
+<pre><code class="language-text">before &lt;step&gt; ... end
+</code></pre>
+<ul>
+<li>Run commands before a step. Only in AGENTS.talk.</li>
+<li>Steps: read, write, append, replace, put, remove, move, delete, change (any file change), undo, run, start, stop, git, fetch, or a tool name.</li>
+<li>&#39;the <step>&#39; holds the step. For a tool, each parameter is a field by its name: the deploy&#39;s target. args and named hold all the arguments.</li>
+<li>&#39;reject&#39; stops the step.</li>
+<li>A hook cannot change the step. A hook cannot run a program, or call a tool that runs one.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">before</span> change
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> change<span class="tok-keyword">'s</span> path <span class="tok-keyword">ends</span> <span class="tok-keyword">with</span> <span class="tok-string">'.env'</span>
+    <span class="tok-keyword">reject</span> <span class="tok-string">'Cannot change env files!'</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+<h3>after</h3>
+<pre><code class="language-text">after &lt;step&gt; ... end
+</code></pre>
+<p>Run commands after a step. Only in AGENTS.talk. &#39;the <step>&#39; holds the step, and &#39;the result&#39; holds what it gave back.</p>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">after</span> <span class="tok-keyword">run</span>
+  <span class="tok-keyword">print</span> <span class="tok-string">'ran '</span> + <span class="tok-keyword">the</span> <span class="tok-keyword">run</span><span class="tok-keyword">'s</span> program + <span class="tok-string">': '</span> + <span class="tok-keyword">the</span> <span class="tok-keyword">result</span><span class="tok-keyword">'s</span> code
+<span class="tok-keyword">end</span></code></pre>
+<h3>reject</h3>
+<pre><code class="language-text">reject &lt;message&gt;
+</code></pre>
+<p>In a &#39;before&#39; hook: stop the step. In a tool: stop the tool. The script gets an error with the message, at the command that it stopped. &#39;on error&#39; can catch it.</p>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">before</span> <span class="tok-keyword">write</span>
+  <span class="tok-keyword">reject</span> <span class="tok-string">'This project is read only'</span>
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">tool</span> deploy <span class="tok-keyword">with</span> target
+  <span class="tok-keyword">if</span> target <span class="tok-keyword">is</span> <span class="tok-string">'prod'</span>
+    <span class="tok-keyword">reject</span> <span class="tok-string">'Only a human deploys to prod'</span>
+  <span class="tok-keyword">end</span>
+  <span class="tok-keyword">run</span> <span class="tok-string">'fly'</span> <span class="tok-keyword">with</span> <span class="tok-string">'deploy'</span>, <span class="tok-string">'--app'</span>, <span class="tok-string">'shop-'</span> + target <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">network</span>
+<span class="tok-keyword">end</span></code></pre>
+<h3>ask</h3>
+<pre><code class="language-text">ask &lt;question&gt; [with [any of] &lt;choice&gt; or &lt;choice&gt;] [within &lt;duration&gt;]
+</code></pre>
+<ul>
+<li>Ask the human, and wait. Only the human answers, never you.</li>
+<li>The result is the text that the human types, or the choice that the human picks.</li>
+<li>A choice &#39;staging: the test site&#39; shows all of its text, and gives &#39;staging&#39;: the text before the first &#39;: &#39;.</li>
+<li>&#39;with any of&#39; lets the human pick several. The result is a list of the choices, and an empty list if none.</li>
+<li>The first choice is chosen at the start. Put the safe choice first.</li>
+<li>The result is null if there is no way to ask, no answer in time (2 minutes, or the &#39;within&#39; time), or the human declines. Treat null as no.</li>
+</ul>
+<p class="examples-label">Examples</p><pre><code class="language-talk"><span class="tok-keyword">ask</span> <span class="tok-string">'Which branch should I use?'</span>
+<span class="tok-keyword">print</span> <span class="tok-keyword">it</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">ask</span> <span class="tok-string">'Delete the old logs?'</span> <span class="tok-keyword">with</span> <span class="tok-string">'no'</span> <span class="tok-keyword">or</span> <span class="tok-string">'yes'</span> <span class="tok-keyword">within</span> <span class="tok-number">5</span> minutes
+<span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">result</span> <span class="tok-keyword">is</span> <span class="tok-string">'yes'</span>
+  <span class="tok-keyword">print</span> <span class="tok-string">'ok'</span>
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">ask</span> <span class="tok-string">'Deploy where?'</span> <span class="tok-keyword">with</span> <span class="tok-string">'staging: the test site'</span> <span class="tok-keyword">or</span> <span class="tok-string">'production: the live site'</span>
+<span class="tok-keyword">if</span> <span class="tok-keyword">it</span> <span class="tok-keyword">is</span> <span class="tok-string">'production'</span> <span class="tok-keyword">print</span> <span class="tok-string">'careful'</span> <span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">ask</span> <span class="tok-string">'Commit which files?'</span> <span class="tok-keyword">with</span> any <span class="tok-keyword">of</span> <span class="tok-string">'src/a.js: new'</span> <span class="tok-keyword">or</span> <span class="tok-string">'README.md: changed'</span>
+<span class="tok-keyword">for</span> file <span class="tok-keyword">in</span> <span class="tok-keyword">it</span>
+  <span class="tok-keyword">print</span> file
+<span class="tok-keyword">end</span></code></pre>
+<h2 id="hook-steps">Hook Steps</h2><p>In a hook, <code>the &lt;step&gt;</code> holds the step, such as <code>the run&#39;s args</code>. <code>the session is untrusted</code> is true after web text that the human did not approve. For <code>run</code> and <code>start</code>, <code>sandbox</code> is null, or <code>{ network, reads, writes }</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>read</code></td>
+<td>path, and text in an after hook</td>
+</tr>
+<tr>
+<td><code>write, append</code></td>
+<td>kind, path, text</td>
+</tr>
+<tr>
+<td><code>replace</code></td>
+<td>kind, path, old, new; for replace lines: from, to, text</td>
+</tr>
+<tr>
+<td><code>put</code></td>
+<td>kind, path, line, where, text</td>
+</tr>
+<tr>
+<td><code>remove</code></td>
+<td>kind, path, from, to</td>
+</tr>
+<tr>
+<td><code>move</code></td>
+<td>kind, path, to</td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td>kind, path</td>
+</tr>
+<tr>
+<td><code>change</code></td>
+<td>any file change above, with its kind</td>
+</tr>
+<tr>
+<td><code>undo</code></td>
+<td>kind, path, text</td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td>program, args, sandbox, secrets</td>
+</tr>
+<tr>
+<td><code>start</code></td>
+<td>program, args, name, sandbox, secrets</td>
+</tr>
+<tr>
+<td><code>stop</code></td>
+<td>name</td>
+</tr>
+<tr>
+<td><code>git</code></td>
+<td>operation, args; files and message for commit; branch for switch, merge and rebase</td>
+</tr>
+<tr>
+<td><code>fetch</code></td>
+<td>url, method, secrets, and status in an after hook</td>
+</tr>
+<tr>
+<td><code>a tool name</code></td>
+<td>args, named</td>
+</tr>
+</tbody></table>
+</div>
+
+</main>
+<footer class="footer">
+  <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a>
+  &middot; BSD 3-Clause License
+  &middot; Big Sky Software
+</footer>
+</body>
+</html>

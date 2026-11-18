@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sandboxed Scripting for Agents - clank-talk</title>
+  <link rel="canonical" href="https://clank.talk/">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<main class="content">
+<div class="hero">
+<div class="hero-title">Clank<span class="hero-accent">Talk</span></div>
+<h1>Sandboxed Scripting for Agents</h1>
+<div class="hero-art">
+<div class="hero-bubble"><pre><code class="language-talk"><span class="tok-keyword">in</span> <span class="tok-path">@/src/config.js</span>
+  <span class="tok-keyword">replace</span> <span class="tok-string">'retries: 3'</span> <span class="tok-keyword">with</span> <span class="tok-string">'retries: 5'</span>
+
+run_tests
+
+<span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">result</span><span class="tok-keyword">'s</span> code <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-number">0</span>
+  <span class="tok-keyword">undo</span>
+<span class="tok-keyword">end</span></code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">replace</span>
+<span class="tok-string">| total = price * qty</span>
+<span class="tok-keyword">with</span>
+<span class="tok-string">| total = price * qty * (1 - off)</span>
+<span class="tok-keyword">in</span> <span class="tok-path">@/src/cart.js</span>
+
+run_tests</code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">set</span> tests <span class="tok-keyword">to</span> run_tests
+<span class="tok-keyword">set</span> fails <span class="tok-keyword">to</span> <span class="tok-keyword">find</span> <span class="tok-string">'not ok'</span>
+  <span class="tok-keyword">in</span> tests<span class="tok-keyword">'s</span> output
+
+<span class="tok-keyword">print</span> <span class="tok-keyword">first</span> <span class="tok-number">10</span> <span class="tok-keyword">of</span> fails</code></pre>
+<pre><code class="language-talk"><span class="tok-keyword">git</span> <span class="tok-keyword">commit</span> [<span class="tok-path">./src/cart.js</span>]
+  <span class="tok-keyword">with</span> <span class="tok-string">'Fix the total'</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">switch</span> <span class="tok-keyword">to</span> <span class="tok-string">'main'</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">merge</span> <span class="tok-string">'fix-total'</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">push</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">delete</span> branch <span class="tok-string">'fix-total'</span></code></pre>
+<pre><code class="language-talk">site_server
+<span class="tok-keyword">set</span> home <span class="tok-keyword">to</span> <span class="tok-path">http://localhost:8000/</span>
+<span class="tok-keyword">wait</span> <span class="tok-keyword">until</span> <span class="tok-keyword">the</span> status <span class="tok-keyword">of</span> <span class="tok-keyword">fetch</span> home <span class="tok-keyword">as</span> <span class="tok-keyword">response</span>
+  <span class="tok-keyword">is</span> <span class="tok-number">200</span> <span class="tok-keyword">within</span> <span class="tok-number">20</span> seconds
+
+<span class="tok-keyword">print</span> <span class="tok-keyword">process</span> <span class="tok-string">'site'</span></code></pre>
+</div>
+<img src="img/clanktalk-robot.png" alt="A friendly robot">
+</div>
+<p class="subtitle">ClankTalk replaces <a href="docs.html#overview">the wild west of a shell</a> with <a href="docs.html#tools">a small, readable tool language</a> that works with <a href="docs.html#install">any agent in any harness</a>. Your agents get the tools they need to get work done. You get <a href="docs.html#reading">readable</a>, <a href="docs.html#audit">auditable</a> actions, <a href="docs.html#sandboxing">sandboxes</a>, <a href="docs.html#hooks">security hooks</a>, <a href="docs.html#taint">taint tracking</a>, <a href="docs.html#undo">undo</a>, <a href="docs.html#secrets">secrets support</a> and <a href="docs.html">more</a>.</p>
+<p class="subtitle"><a href="docs.html">Docs for Humans</a> &middot; <a href="reference.html">Docs for Agents</a> &middot; <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a> &middot; <a href="https://github.com/sponsors/bigskysoftware">Sponsor</a></p>
+<div class="install">
+<div class="install-picker">
+<span class="install-label">Install for</span>
+<button class="install-button" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="agent-icon claude">C</span><span class="install-name">Claude Code</span><span class="install-chevron"></span></button>
+<ul class="install-menu" role="listbox" hidden>
+<li role="option" tabindex="0" data-agent="claude"><span class="agent-icon claude">C</span>Claude Code</li>
+<li role="option" tabindex="0" data-agent="pi"><span class="agent-icon pi">&pi;</span>pi</li>
+<li role="option" tabindex="0" data-agent="codex"><span class="agent-icon codex">O</span>Codex</li>
+<li role="option" tabindex="0" data-agent="opencode"><span class="agent-icon other">O</span>opencode (experimental)</li>
+<li role="option" tabindex="0" data-agent="other"><span class="agent-icon other">M</span>Other MCP clients</li>
+</ul>
+</div>
+<div class="install-code">
+<button class="install-copy" type="button">Copy</button>
+<pre data-agent="claude"><code># add the server
+claude mcp add clank-talk -- npx -y -p clank-talk@0.1 clank-talk-mcp
+# then, in Claude Code, add the plugin: /taint, /clank-talk, and the guard
+/plugin install clank-talk --marketplace bigskysoftware/clank-talk</code></pre>
+<pre data-agent="pi" hidden><code># install the ClankTalk package for this project
+pi install -l git:github.com/bigskysoftware/clank-talk</code></pre>
+<pre data-agent="codex" hidden><code># add the server
+codex mcp add clank-talk -- npx -y -p clank-talk@0.1 clank-talk-mcp
+# check that it is there
+codex mcp list</code></pre>
+<pre data-agent="opencode" hidden><code># experimental, opencode V2: install the package in your project
+npm install --save-dev clank-talk
+# then load the plugin in opencode.jsonc
+{ "plugins": ["./node_modules/clank-talk/src/js/harnesses/opencode"] }</code></pre>
+<pre data-agent="other" hidden><code>{
+  "mcpServers": {
+    "clank-talk": {
+      "command": "npx",
+      "args": ["-y", "-p", "clank-talk@0.1", "clank-talk-mcp"]
+    }
+  }
+}</code></pre>
+</div>
+</div>
+<script src="js/install.js"></script>
+<script src="js/hero.js"></script>
+</div><div class="features showcase"><div class="feature-grid">
+<section class="feature">
+<h2>Readable Scripts</h2>
+<p>ClankTalk is designed for your agent to write and <em>you</em> to read.  It is optimized for human understanding, while allowing agents to get work done efficiently.</p>
+<div class="compare"><div class="window">
+<div class="window-title">bump.sh</div>
+<pre><code class="language-bash"><span class="tok-keyword">for</span> f <span class="tok-keyword">in</span> ./config/*.json; <span class="tok-keyword">do</span>
+  v=<span class="tok-path">$(</span>jq -r <span class="tok-string">'.version'</span> <span class="tok-string">&quot;$f&quot;</span>)
+  <span class="tok-keyword">if</span> [ <span class="tok-string">&quot;$v&quot;</span> -lt <span class="tok-number">2</span> ]; <span class="tok-keyword">then</span>
+    jq <span class="tok-string">'.version = 2'</span> <span class="tok-string">&quot;$f&quot;</span> &gt; <span class="tok-string">&quot;$f.tmp&quot;</span> \
+      &amp;&amp; mv <span class="tok-string">&quot;$f.tmp&quot;</span> <span class="tok-string">&quot;$f&quot;</span>
+  <span class="tok-keyword">fi</span>
+<span class="tok-keyword">done</span></code></pre>
+</div>
+<div class="window">
+<div class="window-title">bump.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">for</span> file <span class="tok-keyword">in</span> <span class="tok-path">./config/*.json</span>
+  <span class="tok-keyword">set</span> config <span class="tok-keyword">to</span> <span class="tok-keyword">the</span> file<span class="tok-keyword">'s</span> <span class="tok-keyword">text</span> <span class="tok-keyword">as</span> <span class="tok-keyword">json</span>
+  <span class="tok-keyword">if</span> config<span class="tok-keyword">'s</span> version <span class="tok-keyword">is</span> <span class="tok-keyword">less</span> <span class="tok-keyword">than</span> <span class="tok-number">2</span>
+    <span class="tok-keyword">set</span> config<span class="tok-keyword">'s</span> version <span class="tok-keyword">to</span> <span class="tok-number">2</span>
+    <span class="tok-keyword">write</span> config <span class="tok-keyword">as</span> <span class="tok-keyword">json</span> <span class="tok-keyword">to</span> <span class="tok-keyword">the</span> file
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+</div>
+<script src="js/compare.js"></script></section>
+<section class="feature">
+<h2>A Controlled, Observable Runtime</h2>
+<p>Giving an agent a shell is pretty crazy when you think
+about it. ClankTalk gives it a controlled &amp; observable runtime instead:</p>
+<ul>
+<li>File access stays inside the project root</li>
+<li>Secrets and config that runs code, like <code>.env</code> and <code>.git/</code>, are off limits</li>
+<li>You can lock down <code>fetch</code> with your own rules</li>
+<li>Step budgets control run away loops</li>
+</ul>
+<div class="window">
+<div class="window-title">escape.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">write</span> <span class="tok-string">'hello'</span> <span class="tok-keyword">to</span> <span class="tok-path">../../etc/hosts</span>
+<span class="tok-comment"># error: outside the project root</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>Define Your Agent&#39;s Tools</h2>
+<p>You can define new tools in <code>AGENTS.talk</code> for your agents that allow you to minimize the surface area
+needed to get work done.  Agents aren&#39;t allowed to touch <code>.talk</code> files or hidden files by default.</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">tool</span> site_server
+  <span class="tok-keyword">start</span> <span class="tok-string">'npm run dev'</span> <span class="tok-keyword">as</span> <span class="tok-string">'site'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>OS Sandboxes for Programs</h2>
+<p>When available (MacOS, Linux) and needed, tools can run programs in OS level sandboxes.</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">tool</span> run_tests
+  <span class="tok-keyword">run</span> <span class="tok-string">'npm test'</span> <span class="tok-keyword">in</span> a <span class="tok-keyword">sandbox</span> <span class="tok-keyword">with</span> <span class="tok-keyword">local</span> <span class="tok-keyword">network</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>Secret Secrets</h2>
+<p>Allow your agents to use secrets without seeing them in a controlled manner. </p>
+<p>Secrets come from <code>.env</code>, which scripts cannot read, and can only be used in places defined in your <code>AGENTS.talk</code>.</p>
+<div class="window">
+<div class="window-title">github.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">set</span> auth <span class="tok-keyword">to</span> <span class="tok-string">'Bearer '</span> + secret GITHUB_TOKEN
+<span class="tok-keyword">fetch</span> <span class="tok-path">https://api.github.com/user</span> <span class="tok-keyword">with</span> headers: { Authorization: auth }
+
+<span class="tok-keyword">print</span> auth
+<span class="tok-comment"># Bearer &lt;secret GITHUB_TOKEN&gt;</span>
+
+<span class="tok-keyword">print</span> auth <span class="tok-keyword">contains</span> <span class="tok-string">'ghp'</span>
+<span class="tok-comment"># error: a secret cannot go into 'contains'</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>Coherent Security Policy</h2>
+<p>You can define a sophisticated security policy for your project (or company!)</p>
+<p>In <code>AGENTS.talk</code>, <code>allow</code> lines say what your agent can reach, and hooks run logic before and after every agent action.</p>
+<div class="window">
+<div class="window-title">AGENTS.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">allow</span> <span class="tok-keyword">env</span> PATH, HOME
+<span class="tok-keyword">allow</span> <span class="tok-keyword">changes</span> <span class="tok-keyword">to</span> <span class="tok-path">@/.github/</span>
+<span class="tok-keyword">allow</span> <span class="tok-keyword">fetch</span> from <span class="tok-string">'api.github.com'</span>, <span class="tok-string">'registry.npmjs.org'</span>
+<span class="tok-keyword">allow</span> secret NPM_TOKEN <span class="tok-keyword">for</span> <span class="tok-keyword">run</span>
+
+<span class="tok-keyword">before</span> <span class="tok-keyword">git</span>
+  <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">git</span><span class="tok-keyword">'s</span> operation <span class="tok-keyword">is</span> <span class="tok-string">'commit'</span>
+    <span class="tok-keyword">ask</span> <span class="tok-string">'Commit '</span> + <span class="tok-keyword">the</span> <span class="tok-keyword">git</span><span class="tok-keyword">'s</span> files + <span class="tok-string">'?'</span> <span class="tok-keyword">with</span> <span class="tok-string">'yes'</span> <span class="tok-keyword">or</span> <span class="tok-string">'no'</span>
+    <span class="tok-keyword">if</span> <span class="tok-keyword">the</span> <span class="tok-keyword">result</span> <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-string">'yes'</span>
+      <span class="tok-keyword">reject</span> <span class="tok-string">'The human said no'</span>
+    <span class="tok-keyword">end</span>
+  <span class="tok-keyword">end</span>
+<span class="tok-keyword">end</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>Audit Logs</h2>
+<p>ClankTalk adds <em>observability</em> to your agent&#39;s sessions by keeping a log (default of three days) of every action your agent takes.</p>
+<div class="window">
+<div class="window-title">.talk/audit/2026-11-09.log</div>
+<pre><code class="language-audit"><span class="tok-comment">== </span><span class="tok-number">10:42:01</span><span class="tok-comment">  script 12 (main)  done  4 steps ==</span>
+  <span class="tok-keyword">replace</span>
+  <span class="tok-string">| total = price * qty</span>
+  <span class="tok-keyword">with</span>
+  <span class="tok-string">| total = price * qty * (1 - off)</span>
+  <span class="tok-keyword">in</span> <span class="tok-path">@/src/cart.js</span>
+
+  run_tests
+<span class="tok-comment">--</span>
+<span class="tok-number">10:42:01</span>  <span class="tok-keyword">read</span>     <span class="tok-path">src/cart.js</span>
+<span class="tok-number">10:42:01</span>  <span class="tok-keyword">replace</span>  <span class="tok-path">src/cart.js</span><span class="tok-comment">  undo saved</span>
+<span class="tok-number">10:42:01</span>  <span class="tok-keyword">tool</span>     <span class="tok-path">run_tests</span>
+<span class="tok-number">10:42:09</span>  <span class="tok-keyword">run</span>      <span class="tok-path">npm test</span><span class="tok-comment">     code 0, 7.9 s, from run_tests</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>Undo</h2>
+<p>The ClankTalk runtime makes an undo stack available to 
+allow you or the agent to back out any changes made on
+disk easily, even if you aren&#39;t using git.</p>
+<div class="window">
+<div class="window-title">undo.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">replace</span> <span class="tok-string">'retries: 3'</span> <span class="tok-keyword">with</span> <span class="tok-string">'retries: 5'</span> <span class="tok-keyword">in</span> <span class="tok-path">./src/config.js</span>
+<span class="tok-keyword">set</span> tests <span class="tok-keyword">to</span> run_tests
+<span class="tok-keyword">if</span> tests<span class="tok-keyword">'s</span> code <span class="tok-keyword">is</span> <span class="tok-keyword">not</span> <span class="tok-number">0</span>
+  <span class="tok-comment"># the change broke the tests: take it back</span>
+  <span class="tok-keyword">undo</span>
+<span class="tok-keyword">end</span>
+
+<span class="tok-comment"># or go back further, or one file only</span>
+<span class="tok-keyword">undo</span> <span class="tok-number">3</span>
+<span class="tok-keyword">undo</span> <span class="tok-keyword">changes</span> <span class="tok-keyword">to</span> <span class="tok-path">./src/config.js</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>Hardened Git</h2>
+<p>Git tools come built in, with the parts that run programs turned off.  This allows you to use the 80%
+of git that matters without the 20% of git that can
+be used to compromise you.</p>
+<div class="window">
+<div class="window-title">fix.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">git</span> <span class="tok-keyword">switch</span> <span class="tok-keyword">to</span> new branch <span class="tok-string">'fix-retries'</span>
+<span class="tok-keyword">replace</span> <span class="tok-string">'retries: 3'</span> <span class="tok-keyword">with</span> <span class="tok-string">'retries: 5'</span> <span class="tok-keyword">in</span> <span class="tok-path">./src/config.js</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">diff</span> <span class="tok-path">./src/config.js</span>
+<span class="tok-keyword">print</span> <span class="tok-keyword">it</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">commit</span> [<span class="tok-path">./src/config.js</span>] <span class="tok-keyword">with</span> <span class="tok-string">'More retries'</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">rebase</span> onto <span class="tok-string">'main'</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">push</span>
+<span class="tok-comment"># no hooks, no pager, no external diff, and</span>
+<span class="tok-comment"># a repo config that runs programs stops git</span></code></pre>
+</div>
+</section>
+<section class="feature">
+<h2>Taint Tracking</h2>
+<p>Taint tracking allows you to follow when outside, untrusted and &quot;tainted&quot; text has entered into the agent&#39;s environment, and to control how things work
+after that happens.</p>
+<div class="window">
+<div class="window-title">triage.talk</div>
+<pre><code class="language-talk"><span class="tok-keyword">fetch</span> <span class="tok-path">https://example.com/issues/42</span>
+<span class="tok-keyword">git</span> <span class="tok-keyword">push</span>
+<span class="tok-comment"># asks you: Push to origin? 1 untrusted input</span>
+<span class="tok-comment">#   is not approved: https://example.com/issues/42</span></code></pre>
+</div>
+<p>ClankTalk taints the whole session, not just the text, and keeps a copy of each untrusted input your agent read.  You can review and approve them from your terminal, with <code>npx clank-talk taint</code>, or right in your harness, with <code>taint review</code>.</p>
+</section>
+<section class="feature feature-alone">
+<h2>Agent &amp; Harness Agnostic</h2>
+<p>ClankTalk is implemented as an <a href="https://modelcontextprotocol.io">MCP</a> server, so it works with <em>any</em> agent in <em>any</em> harness. </p>
+<p>You can turn off your other tools and ClankTalk becomes
+the only way your agent can interact with your system.</p>
+<div class="window">
+<div class="window-title">terminal</div>
+<pre><code class="language-bash">claude mcp add clank-talk -- npx -y -p clank-talk@<span class="tok-number">0</span>.<span class="tok-number">1</span> clank-talk-mcp
+<span class="tok-comment"># in Claude Code</span>
+/plugin install clank-talk --marketplace bigskysoftware/clank-talk</code></pre>
+</div>
+</section>
+</div>
+<div class="construction"><p>ClankTalk is under construction. Expect things to change.
+Thanks for your patience!</p>
+</div></div>
+
+</main>
+<footer class="footer">
+  <a href="https://github.com/bigskysoftware/clank-talk">GitHub</a>
+  &middot; BSD 3-Clause License
+  &middot; Big Sky Software
+</footer>
+</body>
+</html>

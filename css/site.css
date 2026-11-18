@@ -1,0 +1,409 @@
+/* clank-talk site, light OS9 touches after hyperscript.org */
+
+@font-face { font-family: "Archivo Black"; src: url("../fonts/ArchivoBlack-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/IBMPlexSans-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../fonts/IBMPlexMono-SemiBold.woff2") format("woff2"); font-weight: 600; }
+
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f6f6f6;
+  --bg-chrome: #ebebeb;
+  --border: #d4d4d4;
+  --border-strong: #b0b0b0;
+  --text: #222222;
+  --text-muted: #666666;
+  --accent: #4a84c4;
+  --code-bg: #1e2228;
+  --code-text: #d8dee9;
+  --code-inline: #1f4fb4;
+  --chrome-gradient: linear-gradient(180deg, #eaeaea 0%, #d6d6d6 100%);
+  --font-heading: "IBM Plex Sans", system-ui, sans-serif;
+  --font-display: "Archivo Black", system-ui, sans-serif;
+  --font: "IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono-font: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+  --radius: 5px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+h1, h2, h3 { font-family: var(--font-heading); font-weight: 600; }
+
+.content { max-width: 1140px; margin: 0 auto; padding: 2rem 16px 4rem; }
+
+/* hero: one centered column */
+.hero { padding: 2rem 0 1rem; text-align: center; }
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(3rem, 8vw, 5rem);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #000000;
+}
+.hero-accent { color: #4a84c4; font-style: italic; }
+.hero h1 { margin: 0.5rem 0 2rem; font-size: 1.4rem; color: #3a3a3a; }
+.subtitle { max-width: 680px; margin: 1.5rem auto 0; font-size: 1.05rem; color: #333333; }
+
+/* speech bubble with code, robot to the right */
+.hero-art { display: flex; align-items: flex-start; justify-content: center; gap: 36px; text-align: left; }
+.hero-art img { display: block; width: 220px; max-width: 30%; height: auto; flex-shrink: 0; }
+.hero-bubble {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-top: 8px;
+  padding: 1.1rem 1.3rem;
+  background: #fdf6ea;
+  border: 4px solid #13202e;
+  border-radius: 28px;
+}
+/* tail: dark triangle, then a cream triangle on top of it */
+.hero-bubble::before,
+.hero-bubble::after {
+  content: "";
+  position: absolute;
+  top: 46px;
+  border-style: solid;
+  border-color: transparent;
+}
+.hero-bubble::before {
+  right: -30px;
+  border-width: 16px 0 16px 30px;
+  border-left-color: #13202e;
+}
+/* the cream triangle starts inside the border, so it hides the border line */
+.hero-bubble::after {
+  right: -22px;
+  margin-top: 3px;
+  border-width: 13px 0 13px 26px;
+  border-left-color: #fdf6ea;
+}
+.hero-bubble pre {
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  background: none;
+  color: #13202e;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.hero-bubble code { font-size: inherit; }
+/* all examples sit in one cell, so the bubble keeps the size of the largest one */
+.hero-bubble { display: grid; }
+.hero-bubble pre { grid-area: 1 / 1; align-self: center; }
+.hero-bubble pre ~ pre { visibility: hidden; }
+.hero-bubble.cycling pre { visibility: hidden; opacity: 0; transition: opacity 0.5s, visibility 0.5s; }
+.hero-bubble.cycling pre.shown { visibility: visible; opacity: 1; }
+.hero-bubble .tok-keyword { color: #1d4ed8; }
+.hero-bubble .tok-string { color: #15803d; }
+.hero-bubble .tok-path { color: #b45309; }
+.hero-bubble .tok-comment { color: #4b5563; }
+.hero-bubble .tok-number { color: #7e22ce; }
+/* on a phone: the bubble on top at full width, the robot under it, and the tail slants down to the right, at the robot */
+@media (max-width: 760px) {
+  .hero-art { flex-direction: column; align-items: center; gap: 30px; }
+  .hero-art img { width: 180px; max-width: 55%; }
+  .hero-bubble { align-self: center; width: 100%; max-width: 360px; box-sizing: border-box; margin-top: 0; padding: 0.9rem 1rem; border-radius: 20px; }
+  /* the longest example is wider than a phone: it can still scroll, but with no scrollbar */
+  .hero-bubble pre { font-size: 0.74rem; scrollbar-width: none; }
+  .hero-bubble pre::-webkit-scrollbar { display: none; }
+  /* a right triangle: its tip is at the bottom right */
+  .hero-bubble::before { top: auto; bottom: -30px; right: auto; left: 28%; border-width: 30px 0 0 24px; border-top-color: #13202e; border-left-color: transparent; }
+  /* the cream triangle sits about 4px inside both edges, and covers the border line */
+  .hero-bubble::after { top: auto; bottom: -18px; right: auto; left: calc(28% + 2.5px); margin-top: 0; border-width: 22px 0 0 17.5px; border-top-color: #fdf6ea; border-left-color: transparent; }
+}
+
+.note { text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+
+
+/* window chrome */
+.window {
+  margin: 1rem 0;
+  border: 1px solid #2b3038;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+/* a dark title bar with three dots, like a modern terminal */
+.window-title {
+  position: relative;
+  padding: 7px 14px 7px 70px;
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  color: #8b95a1;
+  background: #272c34;
+  border-bottom: 1px solid #16191e;
+}
+.window-title::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 11px;
+  height: 11px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: #ff5f57;
+  box-shadow: 17px 0 #febc2e, 34px 0 #28c840;
+}
+.window pre { margin: 0; border-radius: 0; }
+
+/* code */
+code { font-family: var(--mono-font); font-size: 0.9em; font-weight: 600; }
+pre {
+  padding: 12px 14px;
+  overflow-x: auto;
+  background: var(--code-bg);
+  color: var(--code-text);
+  border-radius: var(--radius);
+}
+:not(pre) > code { padding: 1px 4px; background: var(--bg-subtle); border-radius: 3px; }
+/* tables in the docs: a light frame, a chrome header, and lines between rows */
+.content table { border-collapse: collapse; margin: 1.2rem 0; font-size: 0.95em; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.content th { text-align: left; padding: 6px 14px; background: var(--chrome-gradient); border-bottom: 1px solid var(--border-strong); font-weight: 600; }
+.content td { padding: 5px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+.content tr:nth-child(even) td { background: var(--bg-subtle); }
+.content td:first-child { white-space: nowrap; }
+
+/* syntax highlighting: bright colors on the dark window; comments stay quiet */
+.tok-keyword { color: #5aa2ff; }
+.tok-string { color: #6fdc8c; }
+.tok-number { color: #ff79c6; }
+.tok-path { color: #ffb86c; }
+.tok-comment { color: #8a99b8; font-style: italic; }
+
+/* features */
+.features { max-width: 680px; margin: 2rem auto; }
+.page-robot { float: right; width: 110px; height: auto; margin: 0 0 1rem 1.5rem; }
+.features h2 { margin: 3rem 0 0.4rem; font-size: 1.4rem; }
+
+/* the docs pages (not the home page): sections, entries, and the list of areas */
+.features:not(.showcase) h2 { padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+.features:not(.showcase) h3 { margin: 2.2rem 0 0.4rem; font-size: 1.1rem; }
+.areas { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.5rem 0; padding: 0; list-style: none; }
+.areas a {
+  display: inline-block; padding: 4px 12px;
+  font-size: 0.9rem; text-decoration: none;
+  border: 1px solid var(--border); border-radius: 999px;
+}
+.areas a:hover { border-color: var(--accent); }
+/* docs typography: a calmer text color, more air between lines and sections, bold colored inline code, and quieter links */
+.features:not(.showcase) { color: #2b2b2b; }
+.features:not(.showcase) h1 { margin: 0.6rem 0 1rem; font-size: 2.3rem; line-height: 1.15; letter-spacing: -0.02em; }
+.features:not(.showcase) h2 { margin-top: 3.6rem; font-size: 1.55rem; letter-spacing: -0.01em; }
+.features:not(.showcase) h3 { letter-spacing: -0.005em; }
+.features:not(.showcase) p, .features:not(.showcase) li { line-height: 1.7; }
+.features:not(.showcase) p { margin: 0 0 1.05rem; }
+.features:not(.showcase) ul { padding-left: 1.3rem; }
+.features:not(.showcase) li { margin: 0.3rem 0; }
+.features:not(.showcase) li::marker { color: var(--text-muted); }
+.features:not(.showcase) a { text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+.features:not(.showcase) a:hover { text-decoration-thickness: 2px; }
+.features:not(.showcase) :not(pre) > code { padding: 0; font-size: 0.88em; font-weight: 600; color: var(--code-inline); background: none; border: none; }
+/* a heading with an id links to itself; a # shows on hover */
+.heading-link { color: inherit; text-decoration: none; }
+.heading-link:hover::after { content: "#"; margin-left: 0.4em; color: var(--accent); font-weight: 400; }
+/* an aside in the docs: a side note, set off from the text */
+.features aside { position: relative; margin: 1.4rem 0; padding: 0.65rem 1.1rem 0.65rem 2.9rem; background: #eef4fb; border: 1px solid #cfe0f2; border-radius: 8px; font-size: 0.93em; color: #34495e; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.features aside::before { content: "i"; position: absolute; left: 1rem; top: 0.95rem; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--accent); color: #fff; font: italic 600 0.8rem/1.2rem Georgia, serif; text-align: center; }
+.features aside p { margin: 0.3rem 0; }
+.features:not(.showcase) > pre { margin: 1.1rem 0 1.4rem; font-size: 0.88rem; line-height: 1.6; }
+/* in the docs, a window is as wide as its code, up to the width of the text, and centered */
+.features:not(.showcase) .window:not(.compare > .window) { width: fit-content; min-width: min(500px, 100%); max-width: 100%; margin: 1.1rem auto 1.4rem; }
+.features:not(.showcase) .window pre { font-size: 0.88rem; line-height: 1.6; padding-right: 1.6rem; }
+/* the links at the top: smaller, so the title leads */
+.features:not(.showcase) > p:first-of-type { font-size: 0.92rem; color: var(--text-muted); }
+.examples-label { margin: 0.8rem 0 0.2rem; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+/* a syntax line in the docs for agents: light, so the examples stand out */
+.features pre:has(> code.language-text) { background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border); }
+
+/* side by side code, wider than the text column */
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: min(960px, calc(100vw - 32px));
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+.compare .window { margin: 0.5rem 0; }
+/* in the docs, the slider stays in the text column, at a reading width */
+.features:not(.showcase) .compare { width: 100%; max-width: 420px; margin: 1.4rem auto; transform: none; }
+@media (max-width: 760px) {
+  .compare { grid-template-columns: 1fr; }
+}
+
+/* install box, under the hero */
+.install { max-width: 680px; margin: 2rem auto 0; text-align: center; }
+/* in the docs, the install steps sit in an inset panel, with the picker centered at its top */
+.install-area {
+  margin: 1.5rem 0 2rem;
+  padding: 1.2rem 1.4rem 0.4rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.install-docs { margin: 0 0 0.6rem; padding-bottom: 1rem; text-align: center; border-bottom: 1px solid var(--border); }
+.install-docs .install-label { font-weight: 600; color: var(--text); }
+.install-area .harness > h3:first-child { margin-top: 1rem; }
+.install-picker { position: relative; display: inline-flex; align-items: center; gap: 0.6rem; }
+.install-label { font-family: var(--font-heading); font-size: 0.95rem; color: #3a3a3a; }
+.install-button {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font: inherit; padding: 6px 12px; cursor: pointer;
+  background: #fff; border: 1px solid var(--border); border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.install-button:hover { border-color: var(--text-muted); }
+.install-chevron {
+  width: 7px; height: 7px; margin-left: 2px;
+  border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+.install-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 10;
+  min-width: 220px; margin: 0; padding: 6px; list-style: none; text-align: left;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.install-menu li {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+}
+.install-menu li:hover, .install-menu li:focus { background: var(--bg-subtle); outline: none; }
+.agent-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 6px;
+  font-family: var(--font-heading); font-size: 0.8rem; font-weight: 700; color: #fff;
+}
+.agent-icon.claude { background: #d97757; }
+.agent-icon.cursor { background: #111; }
+.agent-icon.codex { background: #10a37f; }
+.agent-icon.pi { background: #6b4fbb; }
+.agent-icon.other { background: #5b6472; }
+.install-code { position: relative; margin-top: 0.8rem; text-align: left; }
+.install-code pre { margin: 0; padding-right: 5rem; }
+.install-copy {
+  position: absolute; top: 8px; right: 8px;
+  font: inherit; font-size: 0.8rem; padding: 3px 10px; cursor: pointer;
+  color: var(--code-text); background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3); border-radius: var(--radius);
+}
+/* a small Copy button in the title bar of a code window in the docs */
+.window-copy {
+  position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+  font: inherit; font-size: 0.7rem; line-height: 1.4; padding: 0 7px; cursor: pointer;
+  color: #8b95a1; background: transparent;
+  border: 1px solid #3a414b; border-radius: 4px;
+}
+.window-copy:hover { color: #d8dee9; border-color: #5a6370; }
+.window:has(.window-copy) .window-title { padding-right: 64px; }
+.install-note { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.4rem; }
+
+/* the home page: features two to a row, one column on phones */
+.showcase { max-width: 1100px; }
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem 48px;
+  margin: 3rem 0;
+}
+.feature { min-width: 0; display: flex; flex-direction: column; }
+.feature h2 { margin: 0 0 0.6rem; text-align: center; }
+/* margins do not collapse in a flex column, so each block gets only a bottom margin */
+.feature > p, .feature > ul { margin: 0 0 0.7rem; }
+.feature .window { margin: 0.8rem 0 0; }
+.feature .window ~ p { margin-top: 1rem; }
+/* the last window grows to the bottom of the card, so the cards in a row end together */
+.feature > .window:last-child { flex: 1; display: flex; flex-direction: column; }
+.feature > .window:last-child pre { flex: 1; }
+.feature > .compare { flex: 1; }
+/* the code is a little narrower than the text, and centered */
+.feature > .window, .feature > .compare { width: 92%; align-self: center; }
+.feature-wide { grid-column: 1 / -1; max-width: 680px; width: 100%; justify-self: center; }
+/* a last card with no pair goes in the center, at the width of one column */
+.feature-alone { grid-column: 1 / -1; justify-self: center; width: calc(50% - 24px); }
+/* in a card, the bash and ClankTalk windows stack */
+.feature .compare { grid-template-columns: 1fr; gap: 0; margin-left: 0; transform: none; }
+@media (max-width: 760px) {
+  .feature-grid { grid-template-columns: 1fr; }
+  .feature-alone { width: 100%; }
+}
+
+/* the compare slider: ClankTalk on top of bash, cut open at the bar */
+.compare.slider { position: relative; grid-template-columns: 1fr; gap: 0; --split: 50%; }
+.compare.slider > .window { grid-area: 1 / 1; display: flex; flex-direction: column; margin: 0; }
+.compare.slider > .window pre { flex: 1; overflow: hidden; }
+.compare.slider > .window + .window { clip-path: inset(0 0 0 var(--split)); }
+.compare.slider > .window + .window .window-title { text-align: right; }
+.compare-bar {
+  position: absolute; top: 0; bottom: 0; left: var(--split);
+  width: 3px; margin-left: -1.5px;
+  background: #fff; box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.compare-bar::after {
+  content: "\2194"; position: absolute; top: 50%; left: 50%;
+  width: 28px; height: 28px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: #fff; color: #333;
+  font-size: 16px; line-height: 28px; text-align: center;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+.compare-range {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; opacity: 0; cursor: ew-resize;
+}
+.compare:has(.compare-range:focus-visible) .compare-bar::after { outline: 2px solid var(--accent, #4a90d9); }
+
+/* under construction: a band of hazard stripes on top, warm paper below */
+.construction {
+  position: relative;
+  margin-top: 3rem;
+  padding: 1.15rem 1.3rem 0.85rem;
+  overflow: hidden;
+  font-size: 0.95rem;
+  color: #5c4413;
+  background: #fff8ea;
+  border: 1px solid #ecd3a0;
+  border-radius: 8px;
+}
+.construction::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  background: repeating-linear-gradient(-45deg, #f2b33d 0 10px, #2b2b2b 10px 20px);
+}
+/* the space above the text is the stripes plus the same space as below it */
+.construction { padding: calc(7px + 1rem) 1.5rem 1rem; text-align: center; }
+.features .construction p { margin: 0.25rem 0; line-height: 1.5; }
+.construction p:first-child { font-size: 1.2rem; font-weight: 600; }
+.construction p:first-child::before { content: "\1F6A7"; margin-right: 0.6em; }
+.construction p:first-child::after { content: "\1F6A7"; margin-left: 0.6em; }
+
+/* footer */
+.footer {
+  padding: 2rem 16px 3rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
